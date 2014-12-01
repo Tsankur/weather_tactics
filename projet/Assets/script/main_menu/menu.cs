@@ -18,4 +18,9 @@ public class menu : MonoBehaviour {
     {
         Application.LoadLevel(scene_name);
     }
+
+	public void quitGame()
+	{
+		Application.Quit();
+	}
 }
