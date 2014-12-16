@@ -10,8 +10,9 @@ public class menu : MonoBehaviour {
 	}
 	
 	// Update is called once per frame
-	void Update () {
-	
+	void Update ()
+    {
+	    
 	}
 
     public void changeScene(string scene_name)
