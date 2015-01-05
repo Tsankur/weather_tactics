@@ -6,7 +6,6 @@ public class editor_camera : MonoBehaviour
     private Vector2 m_vMaxPosition = new Vector3(0, 0);
     private bool m_bMoving = false;
     private Vector3 m_vLastMousePosition;
-    private float m_fLastWheelValue = 0;
     private float m_fZoom = 150;
 	// Use this for initialization
 	void Start ()
