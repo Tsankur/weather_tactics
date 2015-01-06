@@ -16,14 +16,30 @@ public class editor_menu : MonoBehaviour
     private int m_iSelectedToolId = 1;
     private GameObject[,] m_tGridElements;
     private int[,] m_tGridElementValue;
+    private bool m_bReplaceLevel = false;
     public Camera m_MainCamera;
     public Material m_SelectedMaterial;
     public InputField m_FileName;
     public Material[] m_vMaterials;
+    public GameObject m_OveridePopup;
+    public GameObject m_LevelListPanel;
+    public GameObject m_LevelNamePrefab;
     // Use this for initialization
     void Start()
     {
+        /*MasterServer.ipAddress = "192.168.0.12";
+        Network.natFacilitatorIP = "192.168.0.12";
+        Network.InitializeServer(6, 2304, true);
+        MasterServer.RegisterHost("WeatherTactics", "Tsan game", "trololol");*/
+        loadLevelList();
         updateGrid();
+        m_OveridePopup.SetActive(false);
+    }
+
+    void OnApplicationQuit()
+    {
+        MasterServer.UnregisterHost();
+        Network.Disconnect();
     }
 
     // Update is called once per frame
@@ -109,11 +125,42 @@ public class editor_menu : MonoBehaviour
             m_iNewWidth = iWidth;
         }
     }
+
+    void loadLevelList()
+    {
+        foreach (Transform child in m_LevelListPanel.transform)
+        {
+            GameObject.Destroy(child.gameObject);
+        }
+        
+        string[] levels = Directory.GetFiles("./Levels");
+        int levelId = 0;
+        m_LevelListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(109.5f, Mathf.Max(5 + 35 * levels.Length, 110));
+        m_LevelListPanel.transform.localPosition = new Vector3(-10, -55, 0);
+        foreach(string path in levels)
+        {
+            string level = path.Substring(9, path.Length - 9 - 4);
+            GameObject newLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
+            newLevelName.transform.SetParent(m_LevelListPanel.transform, false);
+            Button newButton = newLevelName.GetComponent<Button>();
+            /*RectTransform newButtonRect = newLevelName.GetComponent<RectTransform>();
+            newButtonRect.anchoredPosition.Set(65, -20 - 35 * levelId);*/
+            newLevelName.transform.localPosition = new Vector3(0, -20 - 35 * levelId + m_LevelListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
+            newLevelName.transform.GetChild(0).GetComponent<Text>().text = level;
+            AddListenerToLevelButton(newButton, level);
+            levelId++;
+        }
+    }
+
+    void AddListenerToLevelButton(Button button, string level)
+    {
+        button.onClick.AddListener(() => loadMap(level));
+    }
     public void saveMap()
     {
         string filePath = "./Levels/" + m_FileName.text + ".lvl";
-        /*if (!File.Exists(filePath))
-        {*/
+        if (!File.Exists(filePath) || m_bReplaceLevel)
+        {
             BinaryWriter bw;
             //create the file
             try
@@ -144,11 +191,33 @@ public class editor_menu : MonoBehaviour
                 return;
             }
             bw.Close();
-        //}
+            if (m_bReplaceLevel)
+            {
+                m_bReplaceLevel = false;
+            }
+            else
+            {
+                loadLevelList();
+            }
+        }
+        else
+        {
+            m_OveridePopup.SetActive(true);
+        }
     }
-    public void loadMap()
+    public void forceSaveMap(bool force)
     {
-        string filePath = "./Levels/" + m_FileName.text + ".lvl";
+        if(force)
+        {
+            m_bReplaceLevel = true;
+            saveMap();
+        }
+        m_OveridePopup.SetActive(false);
+    }
+    public void loadMap(string _sMapName)
+    {
+        m_FileName.text = _sMapName;
+        string filePath = "./Levels/" + _sMapName + ".lvl";
         if (File.Exists(filePath))
         {
             BinaryReader br;
@@ -196,5 +265,16 @@ public class editor_menu : MonoBehaviour
             }
             br.Close();
         }
+    }
+    public void resetMap()
+    {
+        foreach (Transform child in GridHolder.transform)
+        {
+            GameObject.Destroy(child.gameObject);
+        }
+        m_iWidth = 0;
+        m_iHeight = 0;
+        m_FileName.text = "";
+        updateGrid();
     }
 }
