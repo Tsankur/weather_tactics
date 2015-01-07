@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
-using UnityEditor;
+//using UnityEditor;
 using System.Collections;
 using System.IO;
 
@@ -17,6 +17,7 @@ public class editor_menu : MonoBehaviour
     private GameObject[,] m_tGridElements;
     private int[,] m_tGridElementValue;
     private bool m_bReplaceLevel = false;
+    private bool m_bWaitingForServerList = false;
     public Camera m_MainCamera;
     public Material m_SelectedMaterial;
     public InputField m_FileName;
@@ -24,21 +25,26 @@ public class editor_menu : MonoBehaviour
     public GameObject m_OveridePopup;
     public GameObject m_LevelListPanel;
     public GameObject m_LevelNamePrefab;
+    public GameObject m_ServerListPanel;
+    public GameObject m_StartServerButton;
+    public GameObject m_StopServerButton;
+    public GameObject m_DisconnectFromServerButton;
     // Use this for initialization
     void Start()
     {
-        /*MasterServer.ipAddress = "192.168.0.12";
-        Network.natFacilitatorIP = "192.168.0.12";
-        Network.InitializeServer(6, 2304, true);
-        MasterServer.RegisterHost("WeatherTactics", "Tsan game", "trololol");*/
         loadLevelList();
         updateGrid();
         m_OveridePopup.SetActive(false);
+        MasterServer.ipAddress = "192.168.0.12";
+        Network.natFacilitatorIP = "192.168.0.12";
     }
 
     void OnApplicationQuit()
     {
-        MasterServer.UnregisterHost();
+        if (!Network.isServer)
+        {
+            MasterServer.UnregisterHost();
+        }
         Network.Disconnect();
     }
 
@@ -56,7 +62,13 @@ public class editor_menu : MonoBehaviour
                 m_tGridElementValue[gridElem.x, gridElem.y] = m_iSelectedToolId;
             }
         }
+        if(m_bWaitingForServerList)
+        {
+            m_bWaitingForServerList = !ShowServerList();
+        }
     }
+
+    //Level Edition
     public void changeSelected(Image clickedButton)
     {
         selectedTool.color = clickedButton.color;
@@ -126,6 +138,7 @@ public class editor_menu : MonoBehaviour
         }
     }
 
+    // Level Management
     void loadLevelList()
     {
         foreach (Transform child in m_LevelListPanel.transform)
@@ -135,74 +148,75 @@ public class editor_menu : MonoBehaviour
         
         string[] levels = Directory.GetFiles("./Levels");
         int levelId = 0;
-        m_LevelListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(109.5f, Mathf.Max(5 + 35 * levels.Length, 110));
-        m_LevelListPanel.transform.localPosition = new Vector3(-10, -55, 0);
+        m_LevelListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(130, Mathf.Max(5 + 35 * levels.Length, 110));
+        m_LevelListPanel.transform.localPosition = new Vector3(0, Mathf.Min((-5 - 35 * levels.Length) / 2 + 55, 0), 0);
         foreach(string path in levels)
         {
             string level = path.Substring(9, path.Length - 9 - 4);
             GameObject newLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
             newLevelName.transform.SetParent(m_LevelListPanel.transform, false);
             Button newButton = newLevelName.GetComponent<Button>();
-            /*RectTransform newButtonRect = newLevelName.GetComponent<RectTransform>();
-            newButtonRect.anchoredPosition.Set(65, -20 - 35 * levelId);*/
             newLevelName.transform.localPosition = new Vector3(0, -20 - 35 * levelId + m_LevelListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
             newLevelName.transform.GetChild(0).GetComponent<Text>().text = level;
             AddListenerToLevelButton(newButton, level);
             levelId++;
         }
     }
-
     void AddListenerToLevelButton(Button button, string level)
     {
         button.onClick.AddListener(() => loadMap(level));
     }
     public void saveMap()
     {
-        string filePath = "./Levels/" + m_FileName.text + ".lvl";
-        if (!File.Exists(filePath) || m_bReplaceLevel)
+        if(m_FileName.text.Length > 0)
         {
-            BinaryWriter bw;
-            //create the file
-            try
+
+            string filePath = "./Levels/" + m_FileName.text + ".lvl";
+            if (!File.Exists(filePath) || m_bReplaceLevel)
             {
-                bw = new BinaryWriter(new FileStream(filePath, FileMode.Create));
-            }
-            catch (IOException e)
-            {
-                Debug.Log(e.Message + "\n Cannot create file.");
-                return;
-            }
-            //write in the file
-            try
-            {
-                bw.Write(m_iWidth);
-                bw.Write(m_iHeight);
-                for (int i = 0; i < m_iWidth; i++)
+                BinaryWriter bw;
+                //create the file
+                try
                 {
-                    for (int j = 0; j < m_iWidth; j++)
+                    bw = new BinaryWriter(new FileStream(filePath, FileMode.Create));
+                }
+                catch (IOException e)
+                {
+                    Debug.Log(e.Message + "\n Cannot create file.");
+                    return;
+                }
+                //write in the file
+                try
+                {
+                    bw.Write(m_iWidth);
+                    bw.Write(m_iHeight);
+                    for (int i = 0; i < m_iWidth; i++)
                     {
-                        bw.Write(m_tGridElementValue[i, j]);
+                        for (int j = 0; j < m_iWidth; j++)
+                        {
+                            bw.Write(m_tGridElementValue[i, j]);
+                        }
                     }
                 }
-            }
-            catch (IOException e)
-            {
-                Debug.Log(e.Message + "\n Cannot write to file.");
-                return;
-            }
-            bw.Close();
-            if (m_bReplaceLevel)
-            {
-                m_bReplaceLevel = false;
+                catch (IOException e)
+                {
+                    Debug.Log(e.Message + "\n Cannot write to file.");
+                    return;
+                }
+                bw.Close();
+                if (m_bReplaceLevel)
+                {
+                    m_bReplaceLevel = false;
+                }
+                else
+                {
+                    loadLevelList();
+                }
             }
             else
             {
-                loadLevelList();
+                m_OveridePopup.SetActive(true);
             }
-        }
-        else
-        {
-            m_OveridePopup.SetActive(true);
         }
     }
     public void forceSaveMap(bool force)
@@ -276,5 +290,81 @@ public class editor_menu : MonoBehaviour
         m_iHeight = 0;
         m_FileName.text = "";
         updateGrid();
+    }
+    // network management
+    public void startServer()
+    {
+        if (!Network.isClient)
+        {
+            Network.InitializeServer(6, 2305, true);
+            MasterServer.RegisterHost("WeatherTactics", "Tsan editor", "trololol");
+            m_StartServerButton.SetActive(false);
+            m_StopServerButton.SetActive(true);
+        }
+    }
+    public void stopServer()
+    {
+        Network.Disconnect();
+        MasterServer.UnregisterHost();
+        m_StartServerButton.SetActive(true);
+        m_StopServerButton.SetActive(false);
+    }
+    bool ShowServerList()
+    {
+        HostData[] serveurs = MasterServer.PollHostList();
+        if (serveurs.Length > 0)
+        {
+            foreach (Transform child in m_ServerListPanel.transform)
+            {
+                GameObject.Destroy(child.gameObject);
+            }
+
+            int ServerId = 0;
+            m_ServerListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(130, Mathf.Max(5 + 35 * serveurs.Length, 110));
+            m_ServerListPanel.transform.localPosition = new Vector3(0, Mathf.Min((-5 - 35 * serveurs.Length) / 2 + 55, 0), 0);
+            foreach (HostData server in serveurs)
+            {
+                string serverName = server.gameName;
+                GameObject newLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
+                newLevelName.transform.SetParent(m_ServerListPanel.transform, false);
+                Button newButton = newLevelName.GetComponent<Button>();
+                newLevelName.transform.localPosition = new Vector3(0, -20 - 35 * ServerId + m_ServerListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
+                newLevelName.transform.GetChild(0).GetComponent<Text>().text = serverName;
+                AddListenerToServerButton(newButton, server);
+                ServerId++;
+            }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    public void getServerList()
+    {
+        MasterServer.ClearHostList();
+        MasterServer.RequestHostList("WeatherTactics");
+        m_bWaitingForServerList = true;
+    }
+    void AddListenerToServerButton(Button button, HostData server)
+    {
+        button.onClick.AddListener(() => ConnectToServer(server));
+    }
+    void ConnectToServer(HostData server)
+    {
+        if(!Network.isServer)
+        {
+            Network.Connect(server);
+            m_DisconnectFromServerButton.SetActive(true);
+        }
+        else
+        {
+            Debug.Log("can't connect to server you already are a server");
+        }
+    }
+    public void DisconnectFromServer()
+    {
+        Network.Disconnect();
+        m_DisconnectFromServerButton.SetActive(false);
     }
 }
