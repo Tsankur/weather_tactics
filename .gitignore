@@ -2,6 +2,8 @@
 # General #
 # ======= #
 *.zip
+*.apk
+*.exe
 
 # =============== #
 # Unity generated #
