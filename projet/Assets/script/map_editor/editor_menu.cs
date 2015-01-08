@@ -41,8 +41,8 @@ public class editor_menu : MonoBehaviour
         loadLevelList();
         updateGrid();
         m_OveridePopup.SetActive(false);
-        MasterServer.ipAddress = "192.168.0.12";
-        Network.natFacilitatorIP = "192.168.0.12";
+        MasterServer.ipAddress = "78.236.192.198";
+        Network.natFacilitatorIP = "78.236.192.198";
         getServerList();
     }
 
