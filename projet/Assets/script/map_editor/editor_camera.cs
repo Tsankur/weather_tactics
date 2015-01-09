@@ -10,6 +10,7 @@ public class editor_camera : MonoBehaviour
 	// Use this for initialization
 	void Start ()
     {
+        transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
 	}
 	
 	// Update is called once per frame

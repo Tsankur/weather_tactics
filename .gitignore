@@ -2,6 +2,7 @@
 # General #
 # ======= #
 *.zip
+*.7z
 *.apk
 *.exe
 

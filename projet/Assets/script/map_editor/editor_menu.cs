@@ -6,31 +6,36 @@ using System.IO;
 
 public class editor_menu : MonoBehaviour
 {
-    public Image selectedTool;
-    public GameObject GridHolder;
-    public GameObject GridElement;
+    public Camera m_MainCamera;
+
+    public Image m_SelectedTool;
+    private int m_iSelectedToolId = 1;
+    public Material[] m_vMaterials;
+    public Material m_SelectedMaterial;
+
+    public GameObject m_GridHolder;
+    public GameObject m_GridElement;
     public InputField m_WidthInput;
     public InputField m_HeightInput;
     private int m_iWidth = 0;
     private int m_iHeight = 0;
     private int m_iNewWidth = 10;
     private int m_iNewHeight = 10;
-    private int m_iSelectedToolId = 1;
     private GameObject[,] m_tGridElements;
     private int[,] m_tGridElementValue;
+
     private bool m_bReplaceLevel = false;
-    private bool m_bWaitingForServerList = false;
-    public Camera m_MainCamera;
-    public Material m_SelectedMaterial;
-    public InputField m_FileName;
-    public Material[] m_vMaterials;
+    public InputField m_FileNameInput;
     public GameObject m_OveridePopup;
     public GameObject m_LevelListPanel;
     public GameObject m_LevelNamePrefab;
+
     public GameObject m_ServerListPanel;
     public GameObject m_StartServerButton;
     public GameObject m_StopServerButton;
     public GameObject m_DisconnectFromServerButton;
+    private bool m_bWaitingForServerList = false;
+
     // Use this for initialization
     void Start()
     {
@@ -67,11 +72,11 @@ public class editor_menu : MonoBehaviour
                 GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
                 if(Network.isClient || Network.isServer)
                 {
-                    networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.x, gridElem.y, m_iSelectedToolId);
+                    networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
                 }
                 else
                 {
-                    SetGridElementMaterial(gridElem.x, gridElem.y, m_iSelectedToolId);
+                    SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
                 }
             }
         }
@@ -80,6 +85,8 @@ public class editor_menu : MonoBehaviour
             m_bWaitingForServerList = !ShowServerList();
         }
     }
+
+    //Level Edition
     [RPC]
     void SetGridElementMaterial(int x, int y, int id)
     {
@@ -88,28 +95,26 @@ public class editor_menu : MonoBehaviour
     }
 
     [RPC]
-    void ResetGrid(int x, int y)
+    void ResetGrid(int _iWidth, int _iHeight)
     {
-        m_WidthInput.text = x.ToString();
-        m_HeightInput.text = y.ToString();
-        m_iNewWidth = x;
-        m_iNewHeight = y;
+        m_WidthInput.text = _iWidth.ToString();
+        m_HeightInput.text = _iHeight.ToString();
+        m_iNewWidth = _iWidth;
+        m_iNewHeight = _iHeight;
         resetMap();
     }
 
     [RPC]
-    void SetGridSize(int x, int y)
+    void SetGridSize(int _iWidth, int _iHeight)
     {
-        m_WidthInput.text = x.ToString();
-        m_HeightInput.text = y.ToString();
-        m_iNewWidth = x;
-        m_iNewHeight = y;
+        m_WidthInput.text = _iWidth.ToString();
+        m_HeightInput.text = _iHeight.ToString();
+        m_iNewWidth = _iWidth;
+        m_iNewHeight = _iHeight;
     }
-
-    //Level Edition
-    public void changeSelected(Image clickedButton)
+    public void changeSelected(Image _oClickedButton)
     {
-        selectedTool.color = clickedButton.color;
+        m_SelectedTool.color = _oClickedButton.color;
     }
     public void SetSelectToolID(int _itoolID)
     {
@@ -150,10 +155,10 @@ public class editor_menu : MonoBehaviour
                 }
                 else if (i >= m_iWidth || j >= m_iHeight)
                 {
-                    GameObject newGridElement = (GameObject)Instantiate(GridElement, new Vector3(i * 10, j * 10), Quaternion.identity);
-                    newGridElement.GetComponent<GridElement>().x = i;
-                    newGridElement.GetComponent<GridElement>().y = j;
-                    newGridElement.transform.SetParent(GridHolder.transform);
+                    GameObject newGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10), Quaternion.identity);
+                    newGridElement.GetComponent<GridElement>().m_iX = i;
+                    newGridElement.GetComponent<GridElement>().m_iY = j;
+                    newGridElement.transform.SetParent(m_GridHolder.transform);
                     m_tGridElements[i, j] = newGridElement;
                     m_tGridElementValue[i, j] = 2;
                 }
@@ -184,6 +189,29 @@ public class editor_menu : MonoBehaviour
             m_iNewWidth = iWidth;
         }
     }
+    public void resetMapButtonPressed()
+    {
+        if (Network.isServer || Network.isClient)
+        {
+            networkView.RPC("resetMap", RPCMode.All);
+        }
+        else
+        {
+            resetMap();
+        }
+    }
+    [RPC]
+    void resetMap()
+    {
+        foreach (Transform child in m_GridHolder.transform)
+        {
+            GameObject.Destroy(child.gameObject);
+        }
+        m_iWidth = 0;
+        m_iHeight = 0;
+        m_FileNameInput.text = "";
+        updateGrid();
+    }
 
     // Level Management
     void loadLevelList()
@@ -193,39 +221,38 @@ public class editor_menu : MonoBehaviour
             GameObject.Destroy(child.gameObject);
         }
 
-        string[] levels = Directory.GetFiles(Application.persistentDataPath + "/Levels");
-        int levelId = 0;
-        m_LevelListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(130, Mathf.Max(5 + 35 * levels.Length, 110));
-        m_LevelListPanel.transform.localPosition = new Vector3(0, Mathf.Min((-5 - 35 * levels.Length) / 2 + 55, 0), 0);
-        foreach(string path in levels)
+        string[] tLevels = Directory.GetFiles(Application.persistentDataPath + "/Levels");
+        int iLevelId = 0;
+        m_LevelListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(130, Mathf.Max(5 + 35 * tLevels.Length, 110));
+        m_LevelListPanel.transform.localPosition = new Vector3(0, Mathf.Min((-5 - 35 * tLevels.Length) / 2 + 55, 0), 0);
+        foreach(string path in tLevels)
         {
-            string level = Path.GetFileNameWithoutExtension(path);
-            GameObject newLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
-            newLevelName.transform.SetParent(m_LevelListPanel.transform, false);
-            Button newButton = newLevelName.GetComponent<Button>();
-            newLevelName.transform.localPosition = new Vector3(0, -20 - 35 * levelId + m_LevelListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
-            newLevelName.transform.GetChild(0).GetComponent<Text>().text = level;
-            AddListenerToLevelButton(newButton, level);
-            levelId++;
+            string szLevel = Path.GetFileNameWithoutExtension(path);
+            GameObject oNewLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
+            oNewLevelName.transform.SetParent(m_LevelListPanel.transform, false);
+            Button oNewButton = oNewLevelName.GetComponent<Button>();
+            oNewLevelName.transform.localPosition = new Vector3(0, -20 - 35 * iLevelId + m_LevelListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
+            oNewLevelName.transform.GetChild(0).GetComponent<Text>().text = szLevel;
+            AddListenerToLevelButton(oNewButton, szLevel);
+            iLevelId++;
         }
     }
-    void AddListenerToLevelButton(Button button, string level)
+    void AddListenerToLevelButton(Button _oBbutton, string _szLevel)
     {
-        button.onClick.AddListener(() => loadMap(level));
+        _oBbutton.onClick.AddListener(() => loadMap(_szLevel));
     }
     public void saveMap()
     {
-        if(m_FileName.text.Length > 0)
+        if(m_FileNameInput.text.Length > 0)
         {
-
-            string filePath = Application.persistentDataPath + "/Levels/" + m_FileName.text + ".lvl";
-            if (!File.Exists(filePath) || m_bReplaceLevel)
+            string szFilePath = Application.persistentDataPath + "/Levels/" + m_FileNameInput.text + ".lvl";
+            if (!File.Exists(szFilePath) || m_bReplaceLevel)
             {
                 BinaryWriter bw;
                 //create the file
                 try
                 {
-                    bw = new BinaryWriter(new FileStream(filePath, FileMode.Create));
+                    bw = new BinaryWriter(new FileStream(szFilePath, FileMode.Create));
                 }
                 catch (IOException e)
                 {
@@ -266,9 +293,9 @@ public class editor_menu : MonoBehaviour
             }
         }
     }
-    public void forceSaveMap(bool force)
+    public void forceSaveMap(bool _bForce)
     {
-        if(force)
+        if(_bForce)
         {
             m_bReplaceLevel = true;
             saveMap();
@@ -277,15 +304,15 @@ public class editor_menu : MonoBehaviour
     }
     public void loadMap(string _sMapName)
     {
-        m_FileName.text = _sMapName;
-        string filePath = Application.persistentDataPath + "/Levels/" + _sMapName + ".lvl";
-        if (File.Exists(filePath))
+        m_FileNameInput.text = _sMapName;
+        string szFilePath = Application.persistentDataPath + "/Levels/" + _sMapName + ".lvl";
+        if (File.Exists(szFilePath))
         {
             BinaryReader br;
             //create the file
             try
             {
-                br = new BinaryReader(new FileStream(filePath, FileMode.Open));
+                br = new BinaryReader(new FileStream(szFilePath, FileMode.Open));
             }
             catch (IOException e)
             {
@@ -329,35 +356,13 @@ public class editor_menu : MonoBehaviour
             br.Close();
         }
     }
-    public void resetMapButtonPressed()
-    {
-        if (Network.isServer || Network.isClient)
-        {
-            networkView.RPC("resetMap", RPCMode.All);
-        }
-        else
-        {
-            resetMap();
-        }
-    }
-    [RPC]
-    void resetMap()
-    {
-        foreach (Transform child in GridHolder.transform)
-        {
-            GameObject.Destroy(child.gameObject);
-        }
-        m_iWidth = 0;
-        m_iHeight = 0;
-        m_FileName.text = "";
-        updateGrid();
-    }
+
     // network management (server)
     public void startServer()
     {
         if (!Network.isClient)
         {
-            Network.InitializeServer(6, 6000, true);
+            Network.InitializeServer(5, 6000, true);
             MasterServer.RegisterHost("WeatherTactics", "Tsan editor", "trololol");
             m_StartServerButton.SetActive(false);
             m_StopServerButton.SetActive(true);
@@ -377,43 +382,47 @@ public class editor_menu : MonoBehaviour
             m_StopServerButton.SetActive(false);
         }
     }
-    void OnPlayerConnected(NetworkPlayer player)
+    void OnPlayerConnected(NetworkPlayer _oPlayer)
     {
         Debug.Log("new player connected");
-        networkView.RPC("ResetGrid", player, m_iNewWidth, m_iNewHeight);
+        networkView.RPC("ResetGrid", _oPlayer, m_iNewWidth, m_iNewHeight);
         for (int i = 0; i < m_iWidth; i++)
         {
             for (int j = 0; j < m_iHeight; j++)
             {
-                networkView.RPC("SetGridElementMaterial", player, i, j, m_tGridElementValue[i, j]);
+                networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tGridElementValue[i, j]);
             }
         }
+    }
+    void OnPlayerDisconnected(NetworkPlayer _oPlayer)
+    {
+        Debug.Log("player disconnected : " + _oPlayer);
     }
 
     // network management (client)
     bool ShowServerList()
     {
-        HostData[] serveurs = MasterServer.PollHostList();
-        if (serveurs.Length > 0)
+        HostData[] tServeurs = MasterServer.PollHostList();
+        if (tServeurs.Length > 0)
         {
-            int ServerId = 0;
-            m_ServerListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(130, Mathf.Max(5 + 35 * serveurs.Length, 110));
-            m_ServerListPanel.transform.localPosition = new Vector3(0, Mathf.Min((-5 - 35 * serveurs.Length) / 2 + 55, 0), 0);
-            foreach (HostData server in serveurs)
+            int iServerId = 0;
+            m_ServerListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(130, Mathf.Max(5 + 35 * tServeurs.Length, 110));
+            m_ServerListPanel.transform.localPosition = new Vector3(0, Mathf.Min((-5 - 35 * tServeurs.Length) / 2 + 55, 0), 0);
+            foreach (HostData oServer in tServeurs)
             {
-                string serverName = server.gameName;
-                foreach(string ip in server.ip)
+                string szServerName = oServer.gameName;
+                /*foreach(string ip in oServer.ip)
                 {
                     Debug.Log(ip);
                 }
-                Debug.Log(server.port.ToString());
-                GameObject newLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
-                newLevelName.transform.SetParent(m_ServerListPanel.transform, false);
-                Button newButton = newLevelName.GetComponent<Button>();
-                newLevelName.transform.localPosition = new Vector3(0, -20 - 35 * ServerId + m_ServerListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
-                newLevelName.transform.GetChild(0).GetComponent<Text>().text = serverName;
-                AddListenerToServerButton(newButton, server);
-                ServerId++;
+                Debug.Log(oServer.port.ToString());*/
+                GameObject oNewServerName = (GameObject)Instantiate(m_LevelNamePrefab);
+                oNewServerName.transform.SetParent(m_ServerListPanel.transform, false);
+                Button oNewButton = oNewServerName.GetComponent<Button>();
+                oNewServerName.transform.localPosition = new Vector3(0, -20 - 35 * iServerId + m_ServerListPanel.GetComponent<RectTransform>().sizeDelta.y / 2, 0);
+                oNewServerName.transform.GetChild(0).GetComponent<Text>().text = szServerName + " " + oServer.connectedPlayers + "/" + oServer.playerLimit;
+                AddListenerToServerButton(oNewButton, oServer);
+                iServerId++;
             }
             return true;
         }
@@ -421,6 +430,10 @@ public class editor_menu : MonoBehaviour
         {
             return false;
         }
+    }
+    void AddListenerToServerButton(Button _oButton, HostData _oServer)
+    {
+        _oButton.onClick.AddListener(() => ConnectToServer(_oServer));
     }
     public void getServerList()
     {
@@ -432,18 +445,14 @@ public class editor_menu : MonoBehaviour
         }
         m_bWaitingForServerList = true;
     }
-    void AddListenerToServerButton(Button button, HostData server)
-    {
-        button.onClick.AddListener(() => ConnectToServer(server));
-    }
 
-    void ConnectToServer(HostData server)
+    void ConnectToServer(HostData _oServer)
     {
         if (!Network.isServer)
         {
             if(!Network.isClient)
             {
-                Network.Connect(server);
+                Network.Connect(_oServer);
             }
             else
             {
@@ -464,7 +473,7 @@ public class editor_menu : MonoBehaviour
         Debug.Log("Connected to server");
         m_DisconnectFromServerButton.SetActive(true);
     }
-    void OnDisconnectedFromServer(NetworkDisconnection info)
+    void OnDisconnectedFromServer(NetworkDisconnection _oInfo)
     {
         Debug.Log("Disconnected from server");
         m_DisconnectFromServerButton.SetActive(false);
