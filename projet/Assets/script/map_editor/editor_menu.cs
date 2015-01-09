@@ -42,7 +42,7 @@ public class editor_menu : MonoBehaviour
         updateGrid();
         m_OveridePopup.SetActive(false);
         MasterServer.ipAddress = "78.236.192.198";
-        Network.natFacilitatorIP = "78.236.192.198";
+        //Network.natFacilitatorIP = "78.236.192.198";
         getServerList();
     }
 
@@ -357,7 +357,7 @@ public class editor_menu : MonoBehaviour
     {
         if (!Network.isClient)
         {
-            Network.InitializeServer(6, 2305, true);
+            Network.InitializeServer(6, 6000, true);
             MasterServer.RegisterHost("WeatherTactics", "Tsan editor", "trololol");
             m_StartServerButton.SetActive(false);
             m_StopServerButton.SetActive(true);
@@ -402,6 +402,11 @@ public class editor_menu : MonoBehaviour
             foreach (HostData server in serveurs)
             {
                 string serverName = server.gameName;
+                foreach(string ip in server.ip)
+                {
+                    Debug.Log(ip);
+                }
+                Debug.Log(server.port.ToString());
                 GameObject newLevelName = (GameObject)Instantiate(m_LevelNamePrefab);
                 newLevelName.transform.SetParent(m_ServerListPanel.transform, false);
                 Button newButton = newLevelName.GetComponent<Button>();
