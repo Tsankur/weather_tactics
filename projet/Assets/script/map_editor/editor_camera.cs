@@ -75,9 +75,10 @@ public class editor_camera : MonoBehaviour
     {
         float fVisionHeight = m_fZoom * Mathf.Sin(Mathf.PI / 6.0f) / Mathf.Cos(Mathf.PI / 6.0f);
         float fVisionWidth = fVisionHeight * camera.aspect;
-        float fpanelWidth = 158.0f / (float)Screen.width * fVisionWidth * 2;
-        m_vRealMaxPosition = new Vector2(Mathf.Max((m_vMaxPosition.x - fpanelWidth) / 2, m_vMaxPosition.x - fVisionWidth + 5), Mathf.Max(m_vMaxPosition.y / 2, m_vMaxPosition.y - fVisionHeight + 5));
-        m_vRealMinPosition = new Vector2(Mathf.Min((m_vMaxPosition.x - fpanelWidth) / 2, fVisionWidth - 5 - fpanelWidth), Mathf.Min(m_vMaxPosition.y / 2, fVisionHeight - 5));
+        Vector2 vMinGamezone = new Vector2(160.0f / (float)Screen.width * fVisionWidth * 2, 2.0f / (float)Screen.width * fVisionHeight * 2);
+        Vector2 vMaxGamezone = new Vector2(2.0f / (float)Screen.width * fVisionWidth * 2, 2.0f / (float)Screen.width * fVisionHeight * 2);
+        m_vRealMaxPosition = new Vector2(Mathf.Max((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, m_vMaxPosition.x - fVisionWidth + 5 + vMaxGamezone.x), Mathf.Max((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, m_vMaxPosition.y - fVisionHeight + 5 + vMaxGamezone.y));
+        m_vRealMinPosition = new Vector2(Mathf.Min((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, fVisionWidth - 5 - vMinGamezone.x),                    Mathf.Min((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, fVisionHeight - 5 - vMinGamezone.y));
     }
     public void SetMaxPosition(Vector2 _vMaxPosition)
     {
