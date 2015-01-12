@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class editor_camera : MonoBehaviour
+public class ingame_camera : MonoBehaviour
 {
     private Vector2 m_vMaxPosition = new Vector2(0, 0);
     public Vector2 m_vRealMaxPosition = new Vector2(0, 0);
@@ -9,35 +9,20 @@ public class editor_camera : MonoBehaviour
     private bool m_bMoving = false;
     private Vector3 m_vLastMousePosition;
     private float m_fZoom = 150;
-	// Use this for initialization
-	void Start ()
+    // Use this for initialization
+    void Start()
     {
+        m_fZoom = 50;
         transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
-	}
-	
-	// Update is called once per frame
-	void Update ()
+    }
+
+    // Update is called once per frame
+    void Update()
     {
-	    if(Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(1))
         {
             m_vLastMousePosition = Input.mousePosition;
             m_bMoving = true;
-        }
-        float fMouseWheelDelta = Input.GetAxis("Mouse ScrollWheel");
-        if (fMouseWheelDelta != 0.0f)
-        {
-            m_fZoom -= fMouseWheelDelta * 50;
-            if (m_fZoom > 300)
-            {
-                m_fZoom = 300;
-            }
-            if (m_fZoom < 50)
-            {
-                m_fZoom = 50;
-            }
-            transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
-            ComputeRealMaxPositions();
-            ClampPosition();
         }
         if (m_bMoving)
         {
@@ -49,7 +34,7 @@ public class editor_camera : MonoBehaviour
         {
             m_bMoving = false;
         }
-	}
+    }
     void ClampPosition()
     {
         float newX = transform.position.x, newY = transform.position.y;

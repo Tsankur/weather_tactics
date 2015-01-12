@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 //using UnityEditor;
+using UnityEngine.EventSystems;
 using System.Collections;
 using System.IO;
 
@@ -63,20 +64,23 @@ public class editor_menu : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetMouseButton(0))
+        if (!EventSystem.current.IsPointerOverGameObject())
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hitInfos;
-            if (Physics.Raycast(ray, out hitInfos))
+            if (Input.GetMouseButton(0))
             {
-                GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
-                if(Network.isClient || Network.isServer)
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hitInfos;
+                if (Physics.Raycast(ray, out hitInfos))
                 {
-                    networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
-                }
-                else
-                {
-                    SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
+                    GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
+                    if (Network.isClient || Network.isServer)
+                    {
+                        networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
+                    }
+                    else
+                    {
+                        SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
+                    }
                 }
             }
         }
@@ -160,7 +164,7 @@ public class editor_menu : MonoBehaviour
                     newGridElement.GetComponent<GridElement>().m_iY = j;
                     newGridElement.transform.SetParent(m_GridHolder.transform);
                     m_tGridElements[i, j] = newGridElement;
-                    m_tGridElementValue[i, j] = 2;
+                    SetGridElementMaterial(i, j, m_iSelectedToolId);
                 }
                 else
                 {
