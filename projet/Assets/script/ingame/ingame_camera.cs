@@ -3,23 +3,39 @@ using System.Collections;
 
 public class ingame_camera : MonoBehaviour
 {
+    // setting interface size to set the correct game zone
+    public int m_iTopInterfaceHeight = 0;
+    public int m_iBottomInterfaceHeight = 0;
+    public int m_iRightInterfaceWidth = 0;
+    public int m_iLeftInterfaceWidth = 0;
+
     private Vector2 m_vMaxPosition = new Vector2(0, 0);
-    public Vector2 m_vRealMaxPosition = new Vector2(0, 0);
-    public Vector2 m_vRealMinPosition = new Vector2(0, 0);
+    private Vector2 m_vRealMaxPosition = new Vector2(0, 0);
+    private Vector2 m_vRealMinPosition = new Vector2(0, 0);
     private bool m_bMoving = false;
     private Vector3 m_vLastMousePosition;
     private float m_fZoom = 150;
     // Use this for initialization
     void Start()
     {
-        m_fZoom = 50;
+        // compute the zoom to have a minimum 10 cells on the smallest of width or height taking the UI into account.
+        int iCenterWidth = Screen.width - (m_iRightInterfaceWidth + m_iLeftInterfaceWidth);
+        int iCenterHeight = Screen.height - (m_iTopInterfaceHeight + m_iBottomInterfaceHeight);
+        if(iCenterWidth > iCenterHeight)
+        {
+            m_fZoom = 100.0f * ((float)Screen.height / (float)iCenterHeight) / Mathf.Sin(Mathf.PI / 6.0f) * Mathf.Cos(Mathf.PI / 6.0f) / 2;
+        }
+        else
+        {
+            m_fZoom = 100.0f * ((float)Screen.width / (float)iCenterWidth) / Mathf.Sin(Mathf.PI / 6.0f) * Mathf.Cos(Mathf.PI / 6.0f) / camera.aspect / 2;
+        }
         transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(0))
         {
             m_vLastMousePosition = Input.mousePosition;
             m_bMoving = true;
@@ -30,7 +46,7 @@ public class ingame_camera : MonoBehaviour
             ClampPosition();
             m_vLastMousePosition = Input.mousePosition;
         }
-        if (Input.GetMouseButtonUp(1))
+        if (Input.GetMouseButtonUp(0))
         {
             m_bMoving = false;
         }
@@ -60,8 +76,8 @@ public class ingame_camera : MonoBehaviour
     {
         float fVisionHeight = m_fZoom * Mathf.Sin(Mathf.PI / 6.0f) / Mathf.Cos(Mathf.PI / 6.0f);
         float fVisionWidth = fVisionHeight * camera.aspect;
-        Vector2 vMinGamezone = new Vector2(10.0f / (float)Screen.width * fVisionWidth * 2, 10.0f / (float)Screen.width * fVisionHeight * 2);
-        Vector2 vMaxGamezone = new Vector2(10.0f / (float)Screen.width * fVisionWidth * 2, 10.0f / (float)Screen.width * fVisionHeight * 2);
+        Vector2 vMinGamezone = new Vector2(m_iLeftInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iBottomInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
+        Vector2 vMaxGamezone = new Vector2(m_iRightInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iTopInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
         m_vRealMaxPosition = new Vector2(Mathf.Max((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, m_vMaxPosition.x - fVisionWidth + 5 + vMaxGamezone.x), Mathf.Max((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, m_vMaxPosition.y - fVisionHeight + 5 + vMaxGamezone.y));
         m_vRealMinPosition = new Vector2(Mathf.Min((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, fVisionWidth - 5 - vMinGamezone.x), Mathf.Min((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, fVisionHeight - 5 - vMinGamezone.y));
     }
