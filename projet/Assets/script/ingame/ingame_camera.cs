@@ -80,6 +80,8 @@ public class ingame_camera : MonoBehaviour
         Vector2 vMaxGamezone = new Vector2(m_iRightInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iTopInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
         m_vRealMaxPosition = new Vector2(Mathf.Max((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, m_vMaxPosition.x - fVisionWidth + 5 + vMaxGamezone.x), Mathf.Max((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, m_vMaxPosition.y - fVisionHeight + 5 + vMaxGamezone.y));
         m_vRealMinPosition = new Vector2(Mathf.Min((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, fVisionWidth - 5 - vMinGamezone.x), Mathf.Min((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, fVisionHeight - 5 - vMinGamezone.y));
+
+        transform.position = new Vector3(transform.position.x, m_vRealMaxPosition.y, -m_fZoom);
     }
     public void SetMaxPosition(Vector2 _vMaxPosition)
     {

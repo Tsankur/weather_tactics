@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.EventSystems;
 
 public class editor_camera : MonoBehaviour
 {
@@ -24,32 +25,35 @@ public class editor_camera : MonoBehaviour
 	// Update is called once per frame
 	void Update ()
     {
-	    if(Input.GetMouseButtonDown(1))
+        if (!EventSystem.current.IsPointerOverGameObject())
         {
-            m_vLastMousePosition = Input.mousePosition;
-            m_bMoving = true;
-        }
-        float fMouseWheelDelta = Input.GetAxis("Mouse ScrollWheel");
-        if (fMouseWheelDelta != 0.0f)
-        {
-            m_fZoom -= fMouseWheelDelta * 50;
-            if (m_fZoom > 300)
+            if (Input.GetMouseButtonDown(1))
             {
-                m_fZoom = 300;
+                m_vLastMousePosition = Input.mousePosition;
+                m_bMoving = true;
             }
-            if (m_fZoom < 50)
+            float fMouseWheelDelta = Input.GetAxis("Mouse ScrollWheel");
+            if (fMouseWheelDelta != 0.0f)
             {
-                m_fZoom = 50;
+                m_fZoom -= fMouseWheelDelta * 50;
+                if (m_fZoom > 300)
+                {
+                    m_fZoom = 300;
+                }
+                if (m_fZoom < 50)
+                {
+                    m_fZoom = 50;
+                }
+                transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
+                ComputeRealMaxPositions();
+                ClampPosition();
             }
-            transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
-            ComputeRealMaxPositions();
-            ClampPosition();
-        }
-        if (m_bMoving)
-        {
-            transform.position += (m_vLastMousePosition - Input.mousePosition) / (800.0f / m_fZoom);
-            ClampPosition();
-            m_vLastMousePosition = Input.mousePosition;
+            if (m_bMoving)
+            {
+                transform.position += (m_vLastMousePosition - Input.mousePosition) / (800.0f / m_fZoom);
+                ClampPosition();
+                m_vLastMousePosition = Input.mousePosition;
+            }
         }
         if (Input.GetMouseButtonUp(1))
         {
