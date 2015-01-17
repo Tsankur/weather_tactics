@@ -73,6 +73,23 @@ public class editor_menu : MonoBehaviour
     {
         if (!EventSystem.current.IsPointerOverGameObject())
         {
+            if (Input.GetMouseButtonDown(0))
+            {
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hitInfos;
+                if (Physics.Raycast(ray, out hitInfos))
+                {
+                    GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
+                    if (Network.isClient || Network.isServer)
+                    {
+                        networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true);
+                    }
+                    else
+                    {
+                        SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true);
+                    }
+                }
+            }
             if (Input.GetMouseButton(0))
             {
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -99,22 +116,25 @@ public class editor_menu : MonoBehaviour
 
     //Level Edition
     [RPC]
-    void SetGridElementMaterial(int x, int y, int id)
+    void SetGridElementMaterial(int x, int y, int id, bool _bRotate = false, int _iRotation = 0)
     {
-        if (id == 0)
+        if (id == 12)
         {
             if (m_tConstructionGridElements[x, y] != null)
             {
                 GameObject.Destroy(m_tConstructionGridElements[x, y]);
                 m_tConstructionGridElementValues[x, y] = 0;
             }
+        }
+        else if (id == 17)
+        {
             if (m_tRiverGridElements[x, y] != null)
             {
                 GameObject.Destroy(m_tRiverGridElements[x, y]);
                 m_tRiverGridElementValues[x, y] = 0;
             }
         }
-        else if (id == 8)
+        else if (id >= 8 && id <= 11)
         {
             if (m_tTerrainGridElementValues[x, y] != 2)
             {
@@ -124,14 +144,25 @@ public class editor_menu : MonoBehaviour
                     newGridElement.GetComponent<GridElement>().m_iX = x;
                     newGridElement.GetComponent<GridElement>().m_iY = y;
                     newGridElement.transform.SetParent(m_GridHolder.transform);
+                    newGridElement.transform.Rotate(Vector3.forward, _iRotation);
 
                     m_tConstructionGridElements[x, y] = newGridElement;
                 }
-                m_tConstructionGridElements[x, y].GetComponent<Renderer>().material = m_vMaterials[id];
-                m_tConstructionGridElementValues[x, y] = id;
+                if (m_tConstructionGridElementValues[x, y] == id)
+                {
+                    if (_bRotate)
+                    {
+                        m_tConstructionGridElements[x, y].transform.Rotate(Vector3.forward, -90);
+                    }
+                }
+                else
+                {
+                    m_tConstructionGridElements[x, y].GetComponent<Renderer>().material = m_vMaterials[id];
+                    m_tConstructionGridElementValues[x, y] = id;
+                }
             }
         }
-        else if (id == 9)
+        else if (id >= 13 && id <= 16)
         {
             if (m_tTerrainGridElementValues[x, y] != 2)
             {
@@ -141,11 +172,22 @@ public class editor_menu : MonoBehaviour
                     newGridElement.GetComponent<GridElement>().m_iX = x;
                     newGridElement.GetComponent<GridElement>().m_iY = y;
                     newGridElement.transform.SetParent(m_GridHolder.transform);
+                    newGridElement.transform.Rotate(Vector3.forward, _iRotation);
 
                     m_tRiverGridElements[x, y] = newGridElement;
                 }
-                m_tRiverGridElements[x, y].GetComponent<Renderer>().material = m_vMaterials[id];
-                m_tRiverGridElementValues[x, y] = id;
+                if (m_tRiverGridElementValues[x, y] == id)
+                {
+                    if (_bRotate)
+                    {
+                        m_tRiverGridElements[x, y].transform.Rotate(Vector3.forward, -90);
+                    }
+                }
+                else
+                {
+                    m_tRiverGridElements[x, y].GetComponent<Renderer>().material = m_vMaterials[id];
+                    m_tRiverGridElementValues[x, y] = id;
+                }
             }
         }
         else
@@ -190,6 +232,7 @@ public class editor_menu : MonoBehaviour
     public void changeSelected(Image _oClickedButton)
     {
         m_SelectedTool.color = _oClickedButton.color;
+        m_SelectedTool.sprite = _oClickedButton.sprite;
     }
     public void SetSelectToolID(int _itoolID)
     {
@@ -387,11 +430,27 @@ public class editor_menu : MonoBehaviour
                     bw.Write(m_iHeight);
                     for (int i = 0; i < m_iWidth; i++)
                     {
-                        for (int j = 0; j < m_iWidth; j++)
+                        for (int j = 0; j < m_iHeight; j++)
                         {
                             bw.Write(m_tTerrainGridElementValues[i, j]);
                             bw.Write(m_tRiverGridElementValues[i, j]);
+                            if (m_tRiverGridElements[i, j] != null)
+                            {
+                                bw.Write((int)(m_tRiverGridElements[i, j].transform.rotation.eulerAngles.z));
+                            }
+                            else
+                            {
+                                bw.Write(0);
+                            }
                             bw.Write(m_tConstructionGridElementValues[i, j]);
+                            if (m_tConstructionGridElements[i, j] != null)
+                            {
+                                bw.Write((int)(m_tConstructionGridElements[i, j].transform.rotation.eulerAngles.z));
+                            }
+                            else
+                            {
+                                bw.Write(0);
+                            }
                             bw.Write(m_tItemGridElementValues[i, j]);
                         }
                     }
@@ -428,7 +487,6 @@ public class editor_menu : MonoBehaviour
     }
     public void loadMap(string _sMapName)
     {
-        m_FileNameInput.text = _sMapName;
         string szFilePath = Application.persistentDataPath + "/Levels/" + _sMapName + ".lvl";
         if (File.Exists(szFilePath))
         {
@@ -462,18 +520,20 @@ public class editor_menu : MonoBehaviour
                     {
                         int iTerrainMaterialId = br.ReadInt32();
                         int iRiverMaterialId = br.ReadInt32();
+                        int iRiverRotation = br.ReadInt32();
                         int iConstructionMaterialId = br.ReadInt32();
+                        int iConstructionRotation = br.ReadInt32();
                         int iItemMaterialId = br.ReadInt32();
                         if(Network.isServer || Network.isClient)
                         {
                             networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iTerrainMaterialId);
                             if(iRiverMaterialId != 0)
                             {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iRiverMaterialId);
+                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iRiverMaterialId, false, iRiverRotation);
                             }
                             if (iConstructionMaterialId != 0)
                             {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iConstructionMaterialId);
+                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iConstructionMaterialId, false, iConstructionRotation);
                             }
                             if (iItemMaterialId != 0)
                             {
@@ -485,11 +545,11 @@ public class editor_menu : MonoBehaviour
                             SetGridElementMaterial(i, j, iTerrainMaterialId);
                             if (iRiverMaterialId != 0)
                             {
-                                SetGridElementMaterial(i, j, iRiverMaterialId);
+                                SetGridElementMaterial(i, j, iRiverMaterialId, false, iRiverRotation);
                             }
                             if (iConstructionMaterialId != 0)
                             {
-                                SetGridElementMaterial(i, j, iConstructionMaterialId);
+                                SetGridElementMaterial(i, j, iConstructionMaterialId, false, iConstructionRotation);
                             }
                             if (iItemMaterialId != 0)
                             {
@@ -505,6 +565,7 @@ public class editor_menu : MonoBehaviour
                 return;
             }
             br.Close();
+            m_FileNameInput.text = _sMapName;
         }
     }
 
