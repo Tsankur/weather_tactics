@@ -89,4 +89,12 @@ public class ingame_camera : MonoBehaviour
         ComputeRealMaxPositions();
         ClampPosition();
     }
+    public bool isInInterface(Vector2 _vPosition)
+    {
+        if (_vPosition.x > m_iLeftInterfaceWidth && _vPosition.x < Screen.width - m_iRightInterfaceWidth && _vPosition.y > m_iBottomInterfaceHeight && _vPosition.y < Screen.height - m_iTopInterfaceHeight)
+        {
+            return false;
+        }
+        return true;
+    }
 }

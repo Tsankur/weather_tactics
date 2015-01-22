@@ -168,7 +168,7 @@ public class editor_menu : MonoBehaviour
             {
                 if (m_tConstructionGridElements[x, y] == null)
                 {
-                    GameObject newGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(x * 10, y * 10, -0.2f), Quaternion.identity);
+                    GameObject newGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(x * 10, y * 10, -0.02f), Quaternion.identity);
                     newGridElement.GetComponent<GridElement>().m_iX = x;
                     newGridElement.GetComponent<GridElement>().m_iY = y;
                     newGridElement.transform.SetParent(m_GridHolder.transform);
@@ -196,7 +196,7 @@ public class editor_menu : MonoBehaviour
             {
                 if (m_tRiverGridElements[x, y] == null)
                 {
-                    GameObject newGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(x * 10, y * 10, -0.1f), Quaternion.identity);
+                    GameObject newGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(x * 10, y * 10, -0.01f), Quaternion.identity);
                     newGridElement.GetComponent<GridElement>().m_iX = x;
                     newGridElement.GetComponent<GridElement>().m_iY = y;
                     newGridElement.transform.SetParent(m_GridHolder.transform);

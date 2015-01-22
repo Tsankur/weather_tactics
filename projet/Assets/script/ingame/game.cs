@@ -1,12 +1,14 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.IO;
+using UnityEngine.EventSystems;
 
 public class game : MonoBehaviour
 {
     // map related variables
     public GameObject m_GridHolder;
     public GameObject m_GridElement;
+    public GameObject m_CharacterPrefab;
     public Material[] m_vMaterials;
     private int m_iWidth = 0;
     private int m_iHeight = 0;
@@ -14,22 +16,61 @@ public class game : MonoBehaviour
     private GameObject[,] m_tRiverGridElements;
     private GameObject[,] m_tConstructionGridElements;
     private GameObject[,] m_tItemGridElements;
+    private GameObject[,] m_tCharacterGridElements;
     private int[,] m_tTerrainGridElementValues;
     private int[,] m_tRiverGridElementValues;
     private int[,] m_tConstructionGridElementValues;
     private int[,] m_tItemGridElementValues;
+    public GridElement m_SelectedChar;
 
 	// Use this for initialization
 	void Start ()
     {
         loadMap(GlobalVariables.m_szMapToLoad);
+        instanciateCharacter(1, m_iHeight - 2);
+        instanciateCharacter(1, m_iHeight - 4);
 	}
 	
 	// Update is called once per frame
 	void Update ()
     {
-	
+        if (!EventSystem.current.IsPointerOverGameObject())
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hitInfos;
+                if (Physics.Raycast(ray, out hitInfos))
+                {
+                    GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
+                    if(gridElem.m_iLayer == 4)
+                    {
+                        if (m_SelectedChar != gridElem)
+                        {
+                            m_SelectedChar = gridElem;
+                        }
+                        else
+                        {
+                            m_SelectedChar = null;
+                        }
+                    }
+                    else
+                    {
+                        m_SelectedChar = null;
+                    }
+                }
+            }
+        }
 	}
+    private void instanciateCharacter(int _iX, int _iY)
+    {
+        m_tCharacterGridElements[_iX, _iY] = (GameObject)Instantiate(m_CharacterPrefab, new Vector3(_iX * 10, _iY * 10, -0.04f), Quaternion.identity);
+        GridElement gridElem = m_tCharacterGridElements[_iX, _iY].GetComponent<GridElement>();
+        gridElem.m_iX = _iX;
+        gridElem.m_iY = _iY;
+        gridElem.m_iLayer = 4;
+    }
+
     public void loadMap(string _sMapName)
     {
         string szFilePath = Application.persistentDataPath + "/Levels/" + _sMapName + ".lvl";
@@ -51,12 +92,12 @@ public class game : MonoBehaviour
             {
                 m_iWidth = br.ReadInt32();
                 m_iHeight = br.ReadInt32();
-                Debug.Log(m_iWidth.ToString() + " " + m_iHeight.ToString());
 
                 m_tTerrainGridElements = new GameObject[m_iWidth, m_iHeight];
                 m_tRiverGridElements = new GameObject[m_iWidth, m_iHeight];
                 m_tConstructionGridElements = new GameObject[m_iWidth, m_iHeight];
                 m_tItemGridElements = new GameObject[m_iWidth, m_iHeight];
+                m_tCharacterGridElements = new GameObject[m_iWidth, m_iHeight];
 
                 m_tTerrainGridElementValues = new int[m_iWidth, m_iHeight];
                 m_tRiverGridElementValues = new int[m_iWidth, m_iHeight];
@@ -77,6 +118,7 @@ public class game : MonoBehaviour
                         GameObject newTerrainGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10), Quaternion.identity);
                         newTerrainGridElement.GetComponent<GridElement>().m_iX = i;
                         newTerrainGridElement.GetComponent<GridElement>().m_iY = j;
+                        newTerrainGridElement.GetComponent<GridElement>().m_iLayer = 0;
                         newTerrainGridElement.transform.SetParent(m_GridHolder.transform);
                         newTerrainGridElement.GetComponent<Renderer>().material = m_vMaterials[iTerrainMaterialId];
 
@@ -85,9 +127,10 @@ public class game : MonoBehaviour
 
                         if (iRiverMaterialId > 0)
                         {
-                            GameObject newRiverGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10), Quaternion.identity);
+                            GameObject newRiverGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10, -0.01f), Quaternion.identity);
                             newRiverGridElement.GetComponent<GridElement>().m_iX = i;
                             newRiverGridElement.GetComponent<GridElement>().m_iY = j;
+                            newRiverGridElement.GetComponent<GridElement>().m_iLayer = 1;
                             newRiverGridElement.transform.SetParent(m_GridHolder.transform);
                             newRiverGridElement.transform.Rotate(Vector3.forward, iRiverRotation);
                             newRiverGridElement.GetComponent<Renderer>().material = m_vMaterials[iRiverMaterialId];
@@ -101,9 +144,10 @@ public class game : MonoBehaviour
                         m_tRiverGridElementValues[i, j] = iRiverMaterialId;
                         if (iConstructionMaterialId > 0)
                         {
-                            GameObject newConstructionGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10), Quaternion.identity);
+                            GameObject newConstructionGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10, -0.02f), Quaternion.identity);
                             newConstructionGridElement.GetComponent<GridElement>().m_iX = i;
                             newConstructionGridElement.GetComponent<GridElement>().m_iY = j;
+                            newConstructionGridElement.GetComponent<GridElement>().m_iLayer = 2;
                             newConstructionGridElement.transform.SetParent(m_GridHolder.transform);
                             newConstructionGridElement.transform.Rotate(Vector3.forward, iConstructionRotation);
                             newConstructionGridElement.GetComponent<Renderer>().material = m_vMaterials[iConstructionMaterialId];
