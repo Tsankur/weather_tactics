@@ -71,6 +71,31 @@ public class editor_menu : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (!m_OveridePopup.activeSelf)
+        {
+#if UNITY_IPHONE || UNITY_ANDROID
+            if (Input.touchCount == 1)
+            {
+                Touch touchZero = Input.GetTouch(0);
+                if (touchZero.phase == TouchPhase.Began && !Camera.main.GetComponent<editor_camera>().isInInterface(touchZero.position))
+                {
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    RaycastHit hitInfos;
+                    if (Physics.Raycast(ray, out hitInfos))
+                    {
+                        GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
+                        if (Network.isClient || Network.isServer)
+                        {
+                            networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
+                        }
+                        else
+                        {
+                            SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
+                        }
+                    }
+                }
+            }
+#else
         if (!EventSystem.current.IsPointerOverGameObject())
         {
             if (Input.GetMouseButtonDown(0))
@@ -82,11 +107,11 @@ public class editor_menu : MonoBehaviour
                     GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
                     if (Network.isClient || Network.isServer)
                     {
-                        networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true);
+                        networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
                     }
                     else
                     {
-                        SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true);
+                        SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
                     }
                 }
             }
@@ -99,16 +124,19 @@ public class editor_menu : MonoBehaviour
                     GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
                     if (Network.isClient || Network.isServer)
                     {
-                        networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
+                        networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, false, 0);
                     }
                     else
                     {
-                        SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId);
+                        SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, false, 0);
                     }
                 }
             }
         }
-        if(m_bWaitingForServerList)
+
+#endif
+        }
+        if (m_bWaitingForServerList)
         {
             m_bWaitingForServerList = !ShowServerList();
         }
@@ -116,7 +144,7 @@ public class editor_menu : MonoBehaviour
 
     //Level Edition
     [RPC]
-    void SetGridElementMaterial(int x, int y, int id, bool _bRotate = false, int _iRotation = 0)
+    void SetGridElementMaterial(int x, int y, int id, bool _bRotate, int _iRotation)
     {
         if (id == 12)
         {
@@ -317,7 +345,7 @@ public class editor_menu : MonoBehaviour
                     m_tRiverGridElementValues[i, j] = 0;
                     m_tConstructionGridElementValues[i, j] = 0;
                     m_tItemGridElementValues[i, j] = 0;
-                    SetGridElementMaterial(i, j, m_iUpdateToolId);
+                    SetGridElementMaterial(i, j, m_iUpdateToolId, false, 0);
                 }
                 else
                 {
@@ -526,7 +554,7 @@ public class editor_menu : MonoBehaviour
                         int iItemMaterialId = br.ReadInt32();
                         if(Network.isServer || Network.isClient)
                         {
-                            networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iTerrainMaterialId);
+                            networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iTerrainMaterialId, false , 0);
                             if(iRiverMaterialId != 0)
                             {
                                 networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iRiverMaterialId, false, iRiverRotation);
@@ -537,12 +565,12 @@ public class editor_menu : MonoBehaviour
                             }
                             if (iItemMaterialId != 0)
                             {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iItemMaterialId);
+                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iItemMaterialId, false, 0);
                             }
                         }
                         else
                         {
-                            SetGridElementMaterial(i, j, iTerrainMaterialId);
+                            SetGridElementMaterial(i, j, iTerrainMaterialId, false , 0);
                             if (iRiverMaterialId != 0)
                             {
                                 SetGridElementMaterial(i, j, iRiverMaterialId, false, iRiverRotation);
@@ -553,7 +581,7 @@ public class editor_menu : MonoBehaviour
                             }
                             if (iItemMaterialId != 0)
                             {
-                                SetGridElementMaterial(i, j, iItemMaterialId);
+                                SetGridElementMaterial(i, j, iItemMaterialId, false , 0);
                             }
                         }
                     }
@@ -602,7 +630,19 @@ public class editor_menu : MonoBehaviour
         {
             for (int j = 0; j < m_iHeight; j++)
             {
-                networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tTerrainGridElementValues[i, j]);
+                networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tTerrainGridElementValues[i, j], false, 0);
+                if (m_tRiverGridElementValues[i, j] != 0 && m_tRiverGridElements[i, j] != null)
+                {
+                    networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tRiverGridElementValues[i, j], false, (int)m_tRiverGridElements[i, j].transform.rotation.eulerAngles.z);
+                }
+                if (m_tConstructionGridElementValues[i, j] != 0 && m_tConstructionGridElements[i, j] != null)
+                {
+                    networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tConstructionGridElementValues[i, j], false, (int)m_tConstructionGridElements[i, j].transform.rotation.eulerAngles.z);
+                }
+                if (m_tItemGridElementValues[i, j] != 0 && m_tItemGridElements[i, j] != null)
+                {
+                    networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tItemGridElementValues[i, j], false, 0);
+                }
             }
         }
     }

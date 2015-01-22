@@ -25,6 +25,57 @@ public class editor_camera : MonoBehaviour
 	// Update is called once per frame
 	void Update ()
     {
+#if UNITY_IPHONE || UNITY_ANDROID
+        if (!EventSystem.current.IsPointerOverGameObject())
+        {
+            if (Input.touchCount == 2)
+            {
+                // Store both touches.
+                Touch touchZero = Input.GetTouch(0);
+                Touch touchOne = Input.GetTouch(1);
+
+                if (touchZero.phase == TouchPhase.Moved || touchOne.phase == TouchPhase.Moved && !isInInterface(touchZero.position) && !isInInterface(touchOne.position))
+                {
+                    // Find the position in the previous frame of each touch.
+                    Vector2 touchZeroPrevPos = touchZero.position - touchZero.deltaPosition;
+                    Vector2 touchOnePrevPos = touchOne.position - touchOne.deltaPosition;
+
+                    // Find the magnitude of the vector (the distance) between the touches in each frame.
+                    float prevTouchDeltaMag = (touchZeroPrevPos - touchOnePrevPos).magnitude;
+                    float touchDeltaMag = (touchZero.position - touchOne.position).magnitude;
+
+                    // Find the difference in the distances between each frame.
+                    float deltaMagnitudeDiff = prevTouchDeltaMag - touchDeltaMag;
+                    if (deltaMagnitudeDiff != 0.0f)
+                    {
+                        m_fZoom += deltaMagnitudeDiff;
+                        if (m_fZoom > 300)
+                        {
+                            m_fZoom = 300;
+                        }
+                        if (m_fZoom < 50)
+                        {
+                            m_fZoom = 50;
+                        }
+                        transform.position = new Vector3(transform.position.x, transform.position.y, -m_fZoom);
+                        ComputeRealMaxPositions();
+                        ClampPosition();
+                    }
+                }
+            }
+            else if (Input.touchCount == 1)
+            {
+                Touch touchZero = Input.GetTouch(0);
+                if (touchZero.phase == TouchPhase.Moved)
+                {
+                    m_vLastMousePosition = Input.mousePosition;
+                    m_bMoving = true;
+                    transform.position += new Vector3(-touchZero.deltaPosition.x, -touchZero.deltaPosition.y) / (800.0f / m_fZoom);
+                    ClampPosition();
+                }
+            }
+        }
+#else
         if (!EventSystem.current.IsPointerOverGameObject())
         {
             if (Input.GetMouseButtonDown(1))
@@ -59,7 +110,8 @@ public class editor_camera : MonoBehaviour
         {
             m_bMoving = false;
         }
-	}
+#endif
+    }
     void ClampPosition()
     {
         float newX = transform.position.x, newY = transform.position.y;
@@ -95,5 +147,13 @@ public class editor_camera : MonoBehaviour
         m_vMaxPosition = _vMaxPosition;
         ComputeRealMaxPositions();
         ClampPosition();
+    }
+    public bool isInInterface(Vector2 _vPosition)
+    {
+        if (_vPosition.x > m_iLeftInterfaceWidth && _vPosition.x < Screen.width - m_iRightInterfaceWidth && _vPosition.y > m_iBottomInterfaceHeight && _vPosition.y < Screen.height - m_iTopInterfaceHeight)
+        {
+            return false;
+        }
+        return true;
     }
 }
