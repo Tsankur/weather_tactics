@@ -206,7 +206,7 @@ public class Character : MonoBehaviour
         {
             Debug.Log(dest.ToString());
         }*/
-        Debug.Log(Time.realtimeSinceStartup - beginTime);
+        //Debug.Log(Time.realtimeSinceStartup - beginTime);
     }
     int computeCost(int _iTerrainId, int _iMP, worldMap _worldMap)
     {
