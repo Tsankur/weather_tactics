@@ -1,34 +1,25 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine.EventSystems;
 
 public class game : MonoBehaviour
 {
     // map related variables
-    public GameObject m_GridHolder;
-    public GameObject m_GridElement;
-    public GameObject m_CharacterPrefab;
-    public Material[] m_vMaterials;
-    private int m_iWidth = 0;
-    private int m_iHeight = 0;
-    private GameObject[,] m_tTerrainGridElements;
-    private GameObject[,] m_tRiverGridElements;
-    private GameObject[,] m_tConstructionGridElements;
-    private GameObject[,] m_tItemGridElements;
-    private GameObject[,] m_tCharacterGridElements;
-    private int[,] m_tTerrainGridElementValues;
-    private int[,] m_tRiverGridElementValues;
-    private int[,] m_tConstructionGridElementValues;
-    private int[,] m_tItemGridElementValues;
     public GridElement m_SelectedChar;
+    public worldMap m_WorldMap;
+    private List<Character> m_vCharaterList;
 
 	// Use this for initialization
 	void Start ()
     {
-        loadMap(GlobalVariables.m_szMapToLoad);
-        instanciateCharacter(1, m_iHeight - 2);
-        instanciateCharacter(1, m_iHeight - 4);
+        m_vCharaterList = new List<Character>();
+        m_WorldMap.loadMap(GlobalVariables.m_szMapToLoad);
+        m_vCharaterList.Add(m_WorldMap.instanciateCharacter(4, 7));
+        m_vCharaterList.Add(m_WorldMap.instanciateCharacter(4, 5));
+        m_vCharaterList[0].Init(10);
+        m_vCharaterList[0].ComputeAvailableDestinations(m_WorldMap, m_vCharaterList);
 	}
 	
 	// Update is called once per frame
@@ -62,121 +53,4 @@ public class game : MonoBehaviour
             }
         }
 	}
-    private void instanciateCharacter(int _iX, int _iY)
-    {
-        m_tCharacterGridElements[_iX, _iY] = (GameObject)Instantiate(m_CharacterPrefab, new Vector3(_iX * 10, _iY * 10, -0.04f), Quaternion.identity);
-        GridElement gridElem = m_tCharacterGridElements[_iX, _iY].GetComponent<GridElement>();
-        gridElem.m_iX = _iX;
-        gridElem.m_iY = _iY;
-        gridElem.m_iLayer = 4;
-    }
-
-    public void loadMap(string _sMapName)
-    {
-        string szFilePath = Application.persistentDataPath + "/Levels/" + _sMapName + ".lvl";
-        if (File.Exists(szFilePath))
-        {
-            BinaryReader br;
-            //create the file
-            try
-            {
-                br = new BinaryReader(new FileStream(szFilePath, FileMode.Open));
-            }
-            catch (IOException e)
-            {
-                Debug.Log(e.Message + "\n Cannot open file.");
-                return;
-            }
-            //read the file
-            try
-            {
-                m_iWidth = br.ReadInt32();
-                m_iHeight = br.ReadInt32();
-
-                m_tTerrainGridElements = new GameObject[m_iWidth, m_iHeight];
-                m_tRiverGridElements = new GameObject[m_iWidth, m_iHeight];
-                m_tConstructionGridElements = new GameObject[m_iWidth, m_iHeight];
-                m_tItemGridElements = new GameObject[m_iWidth, m_iHeight];
-                m_tCharacterGridElements = new GameObject[m_iWidth, m_iHeight];
-
-                m_tTerrainGridElementValues = new int[m_iWidth, m_iHeight];
-                m_tRiverGridElementValues = new int[m_iWidth, m_iHeight];
-                m_tConstructionGridElementValues = new int[m_iWidth, m_iHeight];
-                m_tItemGridElementValues = new int[m_iWidth, m_iHeight];
-                for (int i = 0; i < m_iWidth; i++)
-                {
-                    for (int j = 0; j < m_iHeight; j++)
-                    {
-                        int iTerrainMaterialId = br.ReadInt32();
-                        int iRiverMaterialId = br.ReadInt32();
-                        int iRiverRotation = br.ReadInt32();
-                        int iConstructionMaterialId = br.ReadInt32();
-                        int iConstructionRotation = br.ReadInt32();
-                        int iItemMaterialId = br.ReadInt32();
-
-
-                        GameObject newTerrainGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10), Quaternion.identity);
-                        newTerrainGridElement.GetComponent<GridElement>().m_iX = i;
-                        newTerrainGridElement.GetComponent<GridElement>().m_iY = j;
-                        newTerrainGridElement.GetComponent<GridElement>().m_iLayer = 0;
-                        newTerrainGridElement.transform.SetParent(m_GridHolder.transform);
-                        newTerrainGridElement.GetComponent<Renderer>().material = m_vMaterials[iTerrainMaterialId];
-
-                        m_tTerrainGridElements[i, j] = newTerrainGridElement;
-                        m_tTerrainGridElementValues[i, j] = iTerrainMaterialId;
-
-                        if (iRiverMaterialId > 0)
-                        {
-                            GameObject newRiverGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10, -0.01f), Quaternion.identity);
-                            newRiverGridElement.GetComponent<GridElement>().m_iX = i;
-                            newRiverGridElement.GetComponent<GridElement>().m_iY = j;
-                            newRiverGridElement.GetComponent<GridElement>().m_iLayer = 1;
-                            newRiverGridElement.transform.SetParent(m_GridHolder.transform);
-                            newRiverGridElement.transform.Rotate(Vector3.forward, iRiverRotation);
-                            newRiverGridElement.GetComponent<Renderer>().material = m_vMaterials[iRiverMaterialId];
-
-                            m_tRiverGridElements[i, j] = newRiverGridElement;
-                        }
-                        else
-                        {
-                            m_tRiverGridElements[i, j] = null;
-                        }
-                        m_tRiverGridElementValues[i, j] = iRiverMaterialId;
-                        if (iConstructionMaterialId > 0)
-                        {
-                            GameObject newConstructionGridElement = (GameObject)Instantiate(m_GridElement, new Vector3(i * 10, j * 10, -0.02f), Quaternion.identity);
-                            newConstructionGridElement.GetComponent<GridElement>().m_iX = i;
-                            newConstructionGridElement.GetComponent<GridElement>().m_iY = j;
-                            newConstructionGridElement.GetComponent<GridElement>().m_iLayer = 2;
-                            newConstructionGridElement.transform.SetParent(m_GridHolder.transform);
-                            newConstructionGridElement.transform.Rotate(Vector3.forward, iConstructionRotation);
-                            newConstructionGridElement.GetComponent<Renderer>().material = m_vMaterials[iConstructionMaterialId];
-
-                            m_tConstructionGridElements[i, j] = newConstructionGridElement;
-                        }
-                        else
-                        {
-                            m_tConstructionGridElements[i, j] = null;
-                        }
-                        m_tConstructionGridElementValues[i, j] = iConstructionMaterialId;
-
-                        m_tItemGridElements[i, j] = null;
-                        m_tItemGridElementValues[i, j] = iItemMaterialId;
-
-                    }
-                }
-                Camera.main.GetComponent<ingame_camera>().SetMaxPosition(new Vector2((m_iWidth - 1) * 10, (m_iHeight - 1) * 10));
-            }
-            catch (IOException e)
-            {
-                Debug.Log(e.Message + "\n Cannot read file.");
-                return;
-            }
-            br.Close();
-        }
-        else
-        {
-            Debug.LogError("File not found");
-        }
-    }
 }
