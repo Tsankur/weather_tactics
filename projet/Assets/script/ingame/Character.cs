@@ -85,15 +85,54 @@ public class Character : MonoBehaviour
     public GameObject m_DestinationPrefab;
     public Transform m_PathHolder;
     public GameObject[] m_PathPrefabs;
-    List<Destination> m_vDestinations;
+    List<Destination> m_vAvailableDestinations;
     int m_iMouvementPoints = 0;
     bool m_bNavigation = false;
     bool m_bSwimming = false;
     bool m_bClimbing = false;
-    Destination m_OverDestination = null;
+    bool m_bMovementDone = false;
 
-    public void Start()
+    // movement
+    bool m_bMoving = false;
+    private float m_fSpeed = 2.0f;
+    private float m_fStartTime;
+    private Vector3 m_vStartPosition;
+    private Vector3 m_vEndPosition;
+    Destination m_OverDestination = null;
+    Destination m_Destination = null;
+    Stack<Destination> m_PathToDestination = new Stack<Destination>();
+    Destination m_CurrentPathDestination = null;
+
+    public bool IsMoving()
     {
+        return m_bMoving;
+    }
+    void Update()
+    {
+        if(m_bMoving)
+        {
+            float t = (Time.time - m_fStartTime) * m_fSpeed;
+            transform.position = Vector3.Lerp(m_vStartPosition, m_vEndPosition, t);
+            if (t >= 1.0f)
+            {
+                if(m_PathToDestination.Count > 0)
+                {
+                    Debug.Log("Next Destination, rest : " + m_PathToDestination.Count);
+                    m_CurrentPathDestination = m_PathToDestination.Pop();
+                    m_fStartTime = Time.time;
+                    m_vStartPosition = transform.position;
+                    m_vEndPosition = new Vector3(m_CurrentPathDestination.m_iX * 10, m_CurrentPathDestination.m_iY * 10, -0.05f);
+                }
+                else
+                {
+                    GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
+                    GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;
+                    m_bMoving = false;
+                    m_CurrentPathDestination = null;
+                    m_bMovementDone = true;
+                }
+            }
+        }
     }
     public void Init(int _iMouvementPoints, bool _bSwimming = false, bool _bClimbing = false, bool _bNavigation = false)
     {
@@ -101,13 +140,13 @@ public class Character : MonoBehaviour
         m_bSwimming = _bSwimming;
         m_bClimbing = _bClimbing;
         m_bNavigation = _bNavigation;
-        m_vDestinations = new List<Destination>();
+        m_vAvailableDestinations = new List<Destination>();
     }
 
     public void ComputeAvailableDestinations(worldMap _worldMap, List<Character> _vCharacterList)
     {
         float beginTime = Time.realtimeSinceStartup;
-        m_vDestinations.Clear();
+        m_vAvailableDestinations.Clear();
         Destination Origin = new Destination(m_GridElement.m_iX, m_GridElement.m_iY, m_iMouvementPoints);
         List<Destination> vOldDestinations = new List<Destination>();
         vOldDestinations.Add(Origin);
@@ -166,19 +205,19 @@ public class Character : MonoBehaviour
                             newDestination.m_iMouvementPoints = iMPRest;
                             if (iMPRest >= 0)
                             {
-                                Destination EquivalentDestination = m_vDestinations.Find(destination => destination == newDestination);
+                                Destination EquivalentDestination = m_vAvailableDestinations.Find(destination => destination == newDestination);
                                 if (EquivalentDestination != null)
                                 {
                                     if (newDestination > EquivalentDestination)
                                     {
-                                        m_vDestinations.Remove(EquivalentDestination);
-                                        m_vDestinations.Add(newDestination);
+                                        m_vAvailableDestinations.Remove(EquivalentDestination);
+                                        m_vAvailableDestinations.Add(newDestination);
                                         vNewDestinations.Add(newDestination);
                                     }
                                 }
                                 else
                                 {
-                                    m_vDestinations.Add(newDestination);
+                                    m_vAvailableDestinations.Add(newDestination);
                                     vNewDestinations.Add(newDestination);
                                 }
                             }
@@ -187,18 +226,6 @@ public class Character : MonoBehaviour
                 }
             }
             vOldDestinations = vNewDestinations;
-        }
-        // removing destinations where another character is
-        //Debug.Log(m_vDestinations.Count);
-        foreach(Character character in _vCharacterList)
-        {
-            GridElement elem = character.GetComponent<GridElement>();
-            Destination newDestination = new Destination(elem.m_iX, elem.m_iY, 0);
-            Destination EquivalentDestination = m_vDestinations.Find(destination => destination == newDestination);
-            if(EquivalentDestination != null)
-            {
-                m_vDestinations.Remove(EquivalentDestination);
-            }
         }
 
         //Debug.Log(m_vDestinations.Count);
@@ -224,15 +251,34 @@ public class Character : MonoBehaviour
         }
         return _iMP - _worldMap.GetTerrainCost(_iTerrainId);
     }
-    public void ShowDestinations()
+
+    public void ShowDestinations(List<Character> _vCharacterList)
     {
-        foreach(Destination dest in m_vDestinations)
+        if (!m_bMovementDone)
         {
-            GameObject newDestinationGridElement = (GameObject)Instantiate(m_DestinationPrefab, new Vector3(dest.m_iX * 10, dest.m_iY * 10, -0.04f), Quaternion.identity);
-            newDestinationGridElement.GetComponent<GridElement>().m_iX = dest.m_iX;
-            newDestinationGridElement.GetComponent<GridElement>().m_iY = dest.m_iY;
-            newDestinationGridElement.GetComponent<GridElement>().m_iLayer = 10;
-            newDestinationGridElement.transform.SetParent(m_DestinationHolder);
+            foreach (Destination dest in m_vAvailableDestinations)
+            {
+                bool onAnotherCharacter = false;
+                // do not show destinations where another character is
+                foreach (Character character in _vCharacterList)
+                {
+                    GridElement elem = character.GetComponent<GridElement>();
+                    Destination newDestination = new Destination(elem.m_iX, elem.m_iY, 0);
+                    if(dest == newDestination)
+                    {
+                        onAnotherCharacter = true;
+                        break;
+                    }
+                }
+                if(!onAnotherCharacter)
+                {
+                    GameObject newDestinationGridElement = (GameObject)Instantiate(m_DestinationPrefab, new Vector3(dest.m_iX * 10, dest.m_iY * 10, -0.04f), Quaternion.identity);
+                    newDestinationGridElement.GetComponent<GridElement>().m_iX = dest.m_iX;
+                    newDestinationGridElement.GetComponent<GridElement>().m_iY = dest.m_iY;
+                    newDestinationGridElement.GetComponent<GridElement>().m_iLayer = 10;
+                    newDestinationGridElement.transform.SetParent(m_DestinationHolder);
+                }
+            }
         }
     }
     public void HideDestinations()
@@ -243,9 +289,10 @@ public class Character : MonoBehaviour
             ClearPath();
         }
     }
+
     public void SetOverDestination(int _iX, int _iY)
     {
-        Destination OverDestination = m_vDestinations.Find(destination => destination == new Destination(_iX, _iY, 0));
+        Destination OverDestination = m_vAvailableDestinations.Find(destination => destination == new Destination(_iX, _iY, 0));
         if(OverDestination != m_OverDestination)
         {
             m_OverDestination = OverDestination;
@@ -343,7 +390,7 @@ public class Character : MonoBehaviour
             nextDestination = previousDestination;
             previousDestination = previousDestination.m_Previous;
         }
-        /*GameObject newPathEndGridElement = (GameObject)Instantiate(m_PathPrefabs[0], new Vector3(nextDestination.m_iX * 10, nextDestination.m_iY * 10, -0.05f), Quaternion.identity);
+        /*GameObject newPathEndGridElement = (GameObject)Instantiate(m_PathPrefabs[0], new Vector3(previousDestination.m_iX * 10, previousDestination.m_iY * 10, -0.05f), Quaternion.identity);
         newPathEndGridElement.transform.SetParent(m_PathHolder);*/
     }
     private void ClearPath()
@@ -352,5 +399,29 @@ public class Character : MonoBehaviour
         {
             GameObject.Destroy(child.gameObject);
         }
+    }
+    public bool SetDestination(int _iX, int _iY)
+    {
+        m_PathToDestination.Clear();
+        m_Destination = m_vAvailableDestinations.Find(destination => destination == new Destination(_iX, _iY, 0));
+        if (m_Destination != null)
+        {
+            m_PathToDestination.Push(m_Destination);
+            Destination previousDestination = m_Destination.m_Previous;
+            while (previousDestination.m_Previous != null)
+            {
+                m_PathToDestination.Push(previousDestination);
+                previousDestination = previousDestination.m_Previous;
+            }
+            Debug.Log(m_PathToDestination.Count);
+
+            m_CurrentPathDestination = m_PathToDestination.Pop();
+            HideDestinations();
+            m_fStartTime = Time.time;
+            m_vStartPosition = transform.position;
+            m_vEndPosition = new Vector3(m_CurrentPathDestination.m_iX * 10, m_CurrentPathDestination.m_iY * 10, -0.05f);
+            m_bMoving = true;
+        }
+        return m_bMoving;
     }
 }
