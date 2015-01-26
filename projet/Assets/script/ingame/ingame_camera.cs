@@ -14,7 +14,7 @@ public class ingame_camera : MonoBehaviour
     private Vector2 m_vRealMinPosition = new Vector2(0, 0);
     private bool m_bMoving = false;
     private Vector3 m_vLastMousePosition;
-    private float m_fZoom = 150;
+    //private float m_fZoom = 150;
     // Use this for initialization
     void Start()
     {
@@ -53,7 +53,8 @@ public class ingame_camera : MonoBehaviour
         }
         if (m_bMoving)
         {
-            transform.position += (m_vLastMousePosition - Input.mousePosition) / (800.0f / m_fZoom);
+            //transform.position += (m_vLastMousePosition - Input.mousePosition) / (800.0f / m_fZoom);
+            transform.position += (m_vLastMousePosition - Input.mousePosition) / 450.0f * camera.orthographicSize;
             ClampPosition();
             m_vLastMousePosition = Input.mousePosition;
         }
@@ -81,7 +82,8 @@ public class ingame_camera : MonoBehaviour
         {
             newY = m_vRealMinPosition.y;
         }
-        transform.position = new Vector3(newX, newY, -m_fZoom);
+        //transform.position = new Vector3(newX, newY, -m_fZoom);
+        transform.position = new Vector3(newX, newY, -50);
     }
     void ComputeRealMaxPositions()
     {

@@ -91,6 +91,7 @@ public class Character : MonoBehaviour
     bool m_bSwimming = false;
     bool m_bClimbing = false;
     bool m_bMovementDone = false;
+    bool m_bActionDone = false;
 
     // movement
     bool m_bMoving = false;
@@ -102,10 +103,25 @@ public class Character : MonoBehaviour
     Destination m_Destination = null;
     Stack<Destination> m_PathToDestination = new Stack<Destination>();
     Destination m_CurrentPathDestination = null;
+    private List<Character> m_vCharacterList;
+    private worldMap m_WorldMap;
+
+    public int m_iTeam = 0;
+    public int m_iPlayerID = 0;
 
     public bool IsMoving()
     {
         return m_bMoving;
+    }
+    public bool IsTurnFinish()
+    {
+        return m_bActionDone;
+    }
+    public void ResetTurn()
+    {
+        m_bActionDone = false;
+        m_bMovementDone = false;
+        ComputeAvailableDestinations();
     }
     void Update()
     {
@@ -117,7 +133,8 @@ public class Character : MonoBehaviour
             {
                 if(m_PathToDestination.Count > 0)
                 {
-                    Debug.Log("Next Destination, rest : " + m_PathToDestination.Count);
+                    GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
+                    GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;
                     m_CurrentPathDestination = m_PathToDestination.Pop();
                     m_fStartTime = Time.time;
                     m_vStartPosition = transform.position;
@@ -130,29 +147,34 @@ public class Character : MonoBehaviour
                     m_bMoving = false;
                     m_CurrentPathDestination = null;
                     m_bMovementDone = true;
+                    m_bActionDone = true;
                 }
             }
         }
     }
-    public void Init(int _iMouvementPoints, bool _bSwimming = false, bool _bClimbing = false, bool _bNavigation = false)
+    public void Init(int _iMouvementPoints, int _iPlayerID, int _iTeam, List<Character> _vCharaterList, worldMap _worldMap, bool _bSwimming = false, bool _bClimbing = false, bool _bNavigation = false)
     {
         m_iMouvementPoints = _iMouvementPoints;
+        m_iPlayerID = _iPlayerID;
+        m_iTeam = _iTeam;
+        m_vCharacterList = _vCharaterList;
+        m_WorldMap = _worldMap;
         m_bSwimming = _bSwimming;
         m_bClimbing = _bClimbing;
         m_bNavigation = _bNavigation;
         m_vAvailableDestinations = new List<Destination>();
     }
 
-    public void ComputeAvailableDestinations(worldMap _worldMap, List<Character> _vCharacterList)
+    public void ComputeAvailableDestinations()
     {
-        float beginTime = Time.realtimeSinceStartup;
+        //float beginTime = Time.realtimeSinceStartup;
         m_vAvailableDestinations.Clear();
         Destination Origin = new Destination(m_GridElement.m_iX, m_GridElement.m_iY, m_iMouvementPoints);
         List<Destination> vOldDestinations = new List<Destination>();
         vOldDestinations.Add(Origin);
-        int[,] _tTerrainInfos = _worldMap.GetTerrainInfos();
-        int iMapLimitX = _worldMap.GetMapWidth();
-        int iMapLimitY = _worldMap.GetMapHeight();
+        int[,] _tTerrainInfos = m_WorldMap.GetTerrainInfos();
+        int iMapLimitX = m_WorldMap.GetMapWidth();
+        int iMapLimitY = m_WorldMap.GetMapHeight();
         while (vOldDestinations.Count > 0)
         {
             List<Destination> vNewDestinations = new List<Destination>();
@@ -198,10 +220,27 @@ public class Character : MonoBehaviour
                     if (ok)
                     {
                         Destination newDestination = new Destination(iNewX, iNewY, 0, dest);
-                        if (newDestination != dest.m_Previous)
+
+                        bool onAnotherCharacter = false;
+                        // do not show destinations where another character is
+                        Destination otherCharDestination = new Destination(0, 0, 0);
+                        int iOtherCharTeam = 0;
+                        foreach (Character character in m_vCharacterList)
+                        {
+                            otherCharDestination.m_iX = character.m_GridElement.m_iX;
+                            otherCharDestination.m_iY = character.m_GridElement.m_iY;
+                            if (newDestination == otherCharDestination)
+                            {
+                                iOtherCharTeam = character.m_iTeam;
+                                onAnotherCharacter = true;
+                                break;
+                            }
+                        }
+
+                        if (newDestination != dest.m_Previous && (iOtherCharTeam == m_iTeam || !onAnotherCharacter))
                         {
                             int iTerrainType = _tTerrainInfos[iNewX, iNewY];
-                            int iMPRest = computeCost(iTerrainType, dest.m_iMouvementPoints, _worldMap);
+                            int iMPRest = computeCost(iTerrainType, dest.m_iMouvementPoints);
                             newDestination.m_iMouvementPoints = iMPRest;
                             if (iMPRest >= 0)
                             {
@@ -235,7 +274,7 @@ public class Character : MonoBehaviour
         }*/
         //Debug.Log(Time.realtimeSinceStartup - beginTime);
     }
-    int computeCost(int _iTerrainId, int _iMP, worldMap _worldMap)
+    int computeCost(int _iTerrainId, int _iMP)
     {
         if(_iTerrainId == 2 && !m_bNavigation)
         {
@@ -249,10 +288,10 @@ public class Character : MonoBehaviour
         {
             return -1;
         }
-        return _iMP - _worldMap.GetTerrainCost(_iTerrainId);
+        return _iMP - m_WorldMap.GetTerrainCost(_iTerrainId);
     }
 
-    public void ShowDestinations(List<Character> _vCharacterList)
+    public void ShowDestinations()
     {
         if (!m_bMovementDone)
         {
@@ -260,10 +299,12 @@ public class Character : MonoBehaviour
             {
                 bool onAnotherCharacter = false;
                 // do not show destinations where another character is
-                foreach (Character character in _vCharacterList)
+                Destination newDestination = new Destination(0, 0, 0);
+                foreach (Character character in m_vCharacterList)
                 {
                     GridElement elem = character.GetComponent<GridElement>();
-                    Destination newDestination = new Destination(elem.m_iX, elem.m_iY, 0);
+                    newDestination.m_iX = elem.m_iX;
+                    newDestination.m_iY = elem.m_iY;
                     if(dest == newDestination)
                     {
                         onAnotherCharacter = true;
@@ -413,7 +454,6 @@ public class Character : MonoBehaviour
                 m_PathToDestination.Push(previousDestination);
                 previousDestination = previousDestination.m_Previous;
             }
-            Debug.Log(m_PathToDestination.Count);
 
             m_CurrentPathDestination = m_PathToDestination.Pop();
             HideDestinations();
