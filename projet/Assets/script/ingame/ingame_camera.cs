@@ -14,6 +14,7 @@ public class ingame_camera : MonoBehaviour
     private Vector2 m_vRealMinPosition = new Vector2(0, 0);
     private bool m_bMoving = false;
     private Vector3 m_vLastMousePosition;
+
     //private float m_fZoom = 150;
     // Use this for initialization
     void Start()
