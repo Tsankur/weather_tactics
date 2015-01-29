@@ -44,6 +44,7 @@ public class editor_menu : MonoBehaviour
     public GameObject m_OveridePopup;
     public GameObject m_LevelListPanel;
     public GameObject m_LevelNamePrefab;
+    public Toggle[] m_LevelPlayerCountToggles;
 
     public GameObject m_ServerListPanel;
     public GameObject m_StartServerButton;
@@ -547,6 +548,32 @@ public class editor_menu : MonoBehaviour
     {
         _oBbutton.onClick.AddListener(() => loadMap(_szLevel));
     }
+    int GetMaxPlayerCount()
+    {
+        for (int i = 0; i < m_LevelPlayerCountToggles.Length; i++)
+        {
+            if (m_LevelPlayerCountToggles[i].isOn)
+            {
+                return (i+1) *2;
+            }
+        }
+        return 0;
+    }
+    int SetMaxPlayerCount(int _iMaxPlayerCount)
+    {
+        for (int i = 0; i < m_LevelPlayerCountToggles.Length; i++)
+        {
+            if (_iMaxPlayerCount == (i+1)*2)
+            {
+                m_LevelPlayerCountToggles[i].isOn = true;
+            }
+            else
+            {
+                m_LevelPlayerCountToggles[i].isOn = false;
+            }
+        }
+        return 0;
+    }
     public void saveMap()
     {
         if(m_FileNameInput.text.Length > 0)
@@ -570,7 +597,7 @@ public class editor_menu : MonoBehaviour
                 {
                     bw.Write(m_iWidth);
                     bw.Write(m_iHeight);
-                    bw.Write(m_tSpawns.Count);
+                    bw.Write(GetMaxPlayerCount());
                     for (int i = 0; i < m_iWidth; i++)
                     {
                         for (int j = 0; j < m_iHeight; j++)
@@ -597,6 +624,7 @@ public class editor_menu : MonoBehaviour
                             bw.Write(m_tItemGridElementValues[i, j]);
                         }
                     }
+                    bw.Write(m_tSpawns.Count);
                     foreach(Spawn spawn in m_tSpawns)
                     {
                         GridElement elem = spawn.GetComponent<GridElement>();
@@ -656,7 +684,8 @@ public class editor_menu : MonoBehaviour
             {
                 m_iNewWidth = br.ReadInt32();
                 m_iNewHeight = br.ReadInt32();
-                int iSpawnCount = br.ReadInt32();
+                int iPlayerCount = br.ReadInt32();
+                SetMaxPlayerCount(iPlayerCount);
                 if (Network.isServer || Network.isClient)
                 {
                     networkView.RPC("ResetGrid", RPCMode.All, m_iNewWidth, m_iNewHeight);
@@ -709,6 +738,7 @@ public class editor_menu : MonoBehaviour
                         }
                     }
                 }
+                int iSpawnCount = br.ReadInt32();
                 for (int i = 0; i < iSpawnCount; i++)
                 {
                     int iX = br.ReadInt32();

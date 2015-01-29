@@ -18,11 +18,14 @@ public class MainMenu : MonoBehaviour
     public Button m_MultiplayerCreateButton;
     public string m_szMapName = "";
     Player[] m_PlayerList = new Player[4];
-    public MultiplayerLobby m_MultiplayerLobby;
+    public MultiplayerLobby m_MultiplayerLobby; 
+    public int m_iMaxPlayerCount = 2;
+    bool m_bReady = false;
 
     void Start()
     {
         MasterServer.ipAddress = "78.236.192.198";
+        MasterServer.port = 23466;
         if (!Directory.Exists(Application.persistentDataPath + "/Levels"))
         {
             Directory.CreateDirectory(Application.persistentDataPath + "/Levels");
@@ -50,14 +53,17 @@ public class MainMenu : MonoBehaviour
             m_ServerListPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 5 + 70 * tServeurs.Length);
             foreach (HostData oServer in tServeurs)
             {
-                string szServerName = oServer.gameName;
-                GameObject oNewServerName = (GameObject)Instantiate(m_ServerNamePrefab);
-                oNewServerName.transform.SetParent(m_ServerListPanel.transform, false);
-                Button oNewButton = oNewServerName.GetComponent<Button>();
-                oNewServerName.transform.localPosition = new Vector3(0, -5 - 70 * iServerId, 0);
-                oNewServerName.transform.GetChild(0).GetComponent<Text>().text = szServerName + " " + oServer.connectedPlayers + "/" + oServer.playerLimit;
-                AddListenerToServerButton(oNewButton, oServer);
-                iServerId++;
+                if (oServer.comment == "open")
+                {
+                    string szServerName = oServer.gameName;
+                    GameObject oNewServerName = (GameObject)Instantiate(m_ServerNamePrefab);
+                    oNewServerName.transform.SetParent(m_ServerListPanel.transform, false);
+                    Button oNewButton = oNewServerName.GetComponent<Button>();
+                    oNewServerName.transform.localPosition = new Vector3(0, -5 - 70 * iServerId, 0);
+                    oNewServerName.transform.GetChild(0).GetComponent<Text>().text = szServerName + " " + oServer.connectedPlayers + "/" + oServer.playerLimit;
+                    AddListenerToServerButton(oNewButton, oServer);
+                    iServerId++;
+                }
             }
             return true;
         }
@@ -76,7 +82,14 @@ public class MainMenu : MonoBehaviour
         {
             if (!Network.isClient)
             {
-                Network.Connect(_oServer);
+                if (_oServer.connectedPlayers < _oServer.playerLimit)
+                {
+                    Network.Connect(_oServer);
+                }
+                else
+                {
+                    Debug.Log("can't connect to server the server is full");
+                }
             }
             else
             {
@@ -103,10 +116,6 @@ public class MainMenu : MonoBehaviour
         m_szMapName = _szMapName;
         m_MultiplayerCreateButton.interactable = true;
     }
-
-
-
-
 
     public void loadMultiplayerLevelList()
     {
@@ -147,11 +156,12 @@ public class MainMenu : MonoBehaviour
             m_MultiplayerJoinPanel.SetActive(true);
             getServerList();
         }
-        ;
     }
+
+
     int CreatePlayer(string _szPsuedo, NetworkPlayer _oPlayer)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < m_iMaxPlayerCount; i++)
         {
             if (m_PlayerList[i] == null)
             {
@@ -163,46 +173,74 @@ public class MainMenu : MonoBehaviour
     }
     public void CreateServer()
     {
-        m_PlayerList = new Player[4];
-        m_MultiplayerLobby.Reset();
         if (!Network.isClient)
         {
-            Network.InitializeServer(3, 6000, true);
-            MasterServer.RegisterHost("WeatherTactics", "Tsan game");
+            m_iMaxPlayerCount = 2;
+            string szFilePath = Application.persistentDataPath + "/Levels/" + m_szMapName + ".lvl";
+            if (File.Exists(szFilePath))
+            {
+                BinaryReader br;
+                //create the file
+                try
+                {
+                    br = new BinaryReader(new FileStream(szFilePath, FileMode.Open));
+                }
+                catch (IOException e)
+                {
+                    Debug.Log(e.Message + "\n Cannot open file.");
+                    return;
+                }
+                //read the file
+                try
+                {
+                    int iMapWidth = br.ReadInt32();
+                    int iMapHeight = br.ReadInt32();
+                    m_iMaxPlayerCount = br.ReadInt32();
+                }
+                catch (IOException e)
+                {
+                    Debug.Log(e.Message + "\n Cannot read file.");
+                    return;
+                }
+                br.Close();
+            }
+            m_PlayerList = new Player[m_iMaxPlayerCount];
+            m_MultiplayerLobby.Reset(m_iMaxPlayerCount);
+            Network.InitializeServer(m_iMaxPlayerCount - 1, 6000, true);
+            MasterServer.RegisterHost("WeatherTactics", "Tsan game", "open");
             GlobalVariables.m_szPseudo = "Tsan";
             SetPlayerID(CreatePlayer("Tsan", Network.player));
+            m_bReady = true;
+            SetPlayerReady(GlobalVariables.m_iCurrentPlayerId - 1, true);
         }
         else
         {
             Debug.Log("can't start server you are already connected to a server");
         }
     }
-    public void StopServer()
-    {
-        MasterServer.UnregisterHost();
-        Network.Disconnect();
-    }
-
     [RPC]
-    void SetPseudo(string _szPseudo, NetworkMessageInfo _Info)
+    void SetMaxPlayerCount(int _iMaxPlayerCount)
     {
-        int iNewPlayerID = CreatePlayer(_szPseudo, _Info.sender);
-        networkView.RPC("SetPlayerID", _Info.sender, iNewPlayerID);
+        m_iMaxPlayerCount = _iMaxPlayerCount;
+        m_MultiplayerLobby.Reset(m_iMaxPlayerCount);
+        m_PlayerList = new Player[m_iMaxPlayerCount];
     }
     void OnPlayerConnected(NetworkPlayer _oPlayer)
     {
-        for (int i = 0; i < 4; i++)
+        networkView.RPC("SetMaxPlayerCount", _oPlayer, m_iMaxPlayerCount);
+        for (int i = 0; i < m_iMaxPlayerCount; i++)
         {
             if (m_PlayerList[i] != null)
             {
                 networkView.RPC("SetPlayerSlot", _oPlayer, -1, i, m_PlayerList[i].m_szPseudo, m_PlayerList[i].m_oPlayer);
+                networkView.RPC("SetPlayerReady", _oPlayer, i, m_PlayerList[i].m_bReady);
             }
         }
         Debug.Log("new player connected");
     }
     void OnPlayerDisconnected(NetworkPlayer _oPlayer)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < m_iMaxPlayerCount; i++)
         {
             if (m_PlayerList[i] != null)
             {
@@ -215,21 +253,37 @@ public class MainMenu : MonoBehaviour
         }
         Debug.Log("player disconnected : " + _oPlayer);
     }
-
-    public void DisconnectFromServer()
+    public void GameLaunchButtonPressed()
     {
-        if (Network.isClient)
-        {
-            Network.Disconnect();
-        }
+        Network.maxConnections = -1;
+        MasterServer.RegisterHost("WeatherTactics", "Tsan game", "closed");
+        MasterServer.UnregisterHost();
+    }
+    public void StopServer()
+    {
+        MasterServer.UnregisterHost();
+        Network.Disconnect();
+    }
+
+
+    [RPC]
+    void SetPlayerID(int _iID)
+    {
+        GlobalVariables.m_iCurrentPlayerId = _iID;
+        GlobalVariables.m_iCurrentPlayerTeam = _iID % 2;
+    }
+    [RPC]
+    void SetPseudo(string _szPseudo, NetworkMessageInfo _Info)
+    {
+        int iNewPlayerID = CreatePlayer(_szPseudo, _Info.sender);
+        networkView.RPC("SetPlayerID", _Info.sender, iNewPlayerID);
     }
     void OnConnectedToServer()
     {
-        m_MultiplayerLobby.Reset();
-        m_PlayerList = new Player[4];
         Debug.Log("Connected to server");
         if (Network.isClient)
         {
+            m_bReady = false;
             m_MultiplayerJoinPanel.SetActive(false);
             m_MultiplayerLobbyPanel.SetActive(true);
             GlobalVariables.m_szPseudo = "test";
@@ -246,14 +300,27 @@ public class MainMenu : MonoBehaviour
             getServerList();
         }
     }
-    [RPC]
-    void SetPlayerID(int _iID)
+    public void ReadyButtonPressed()
     {
-        GlobalVariables.m_iCurrentPlayerId = _iID;
-        GlobalVariables.m_iCurrentPlayerTeam = _iID % 2;
+        m_bReady = !m_bReady;
+        networkView.RPC("SetPlayerReady", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, m_bReady);
+    }
+    public void DisconnectFromServer()
+    {
+        if (Network.isClient)
+        {
+            Network.Disconnect();
+        }
+    }
+
+    [RPC]
+    void SetPlayerReady(int _iSlot, bool _bReady)
+    {
+        m_PlayerList[_iSlot].m_bReady = _bReady;
+        m_MultiplayerLobby.SetPlayerReady(_iSlot, _bReady);
     }
     [RPC]
-    void SetPlayerSlot(int _ioldSlot, int _iSlot, string _szPseudo, NetworkPlayer _oPlayer, NetworkMessageInfo _Info)
+    void SetPlayerSlot(int _ioldSlot, int _iSlot, string _szPseudo, NetworkPlayer _oPlayer)
     {
         if (_ioldSlot > -1)
         {
@@ -265,6 +332,7 @@ public class MainMenu : MonoBehaviour
             newPlayer.m_iID = _iSlot + 1;
             newPlayer.m_iTeam = _iSlot % 2 + 1;
             newPlayer.m_szPseudo = _szPseudo;
+            newPlayer.m_bReady = false;
             if (Network.isServer)
             {
                 newPlayer.m_oPlayer = _oPlayer;
@@ -273,10 +341,18 @@ public class MainMenu : MonoBehaviour
         }
         m_MultiplayerLobby.SetPlayerSlot(_ioldSlot, _iSlot, _szPseudo);
     }
-    public void PlayerSlotButtonClicked(int _iID)
+    public void PlayerSlotButtonPressed(int _iID)
     {
+        if(Network.isClient)
+        {
+            m_bReady = false;
+        }
         networkView.RPC("SetPlayerSlot", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, _iID, GlobalVariables.m_szPseudo, Network.player);
         GlobalVariables.m_iCurrentPlayerId = _iID + 1;
         GlobalVariables.m_iCurrentPlayerTeam = _iID % 2 + 1;
+        if (Network.isServer)
+        {
+            networkView.RPC("SetPlayerReady", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, true);
+        }
     }
 }
