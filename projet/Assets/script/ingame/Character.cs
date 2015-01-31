@@ -58,17 +58,17 @@ public class Character : MonoBehaviour
             {
                 if(m_PathToDestination.Count > 0)
                 {
+                    m_CurrentPathDestination = m_PathToDestination.Pop();
                     GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
                     GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;
-                    m_CurrentPathDestination = m_PathToDestination.Pop();
                     m_fStartTime = Time.time;
                     m_vStartPosition = transform.position;
                     m_vEndPosition = new Vector3(m_CurrentPathDestination.m_iX * 10, m_CurrentPathDestination.m_iY * 10, -0.05f);
                 }
                 else
                 {
-                    GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
-                    GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;
+                    /*GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
+                    GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;*/
                     m_bMoving = false;
                     m_CurrentPathDestination = null;
                     m_bMovementDone = true;
@@ -366,26 +366,65 @@ public class Character : MonoBehaviour
             GameObject.Destroy(child.gameObject);
         }
     }
+    [RPC]
+    void StartPath()
+    {
+        m_PathToDestination.Clear();
+    }
+    [RPC]
+    void AddPathDestination(int _iX, int _iY)
+    {
+        Destination newDestination = new Destination(_iX, _iY, 0);
+        m_PathToDestination.Push(newDestination);
+    }
+    [RPC]
+    void EndPath()
+    {
+        m_CurrentPathDestination = m_PathToDestination.Pop();
+        GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
+        GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;
+        m_fStartTime = Time.time;
+        m_vStartPosition = transform.position;
+        m_vEndPosition = new Vector3(m_CurrentPathDestination.m_iX * 10, m_CurrentPathDestination.m_iY * 10, -0.05f);
+        m_bMoving = true;
+    }
     public bool SetDestination(int _iX, int _iY)
     {
         m_PathToDestination.Clear();
+        if (Network.isClient || Network.isServer)
+        {
+            networkView.RPC("StartPath", RPCMode.Others);
+        }
         m_Destination = m_vAvailableDestinations.Find(destination => destination == new Destination(_iX, _iY, 0));
         if (m_Destination != null)
         {
             m_PathToDestination.Push(m_Destination);
+            if (Network.isClient || Network.isServer)
+            {
+                networkView.RPC("AddPathDestination", RPCMode.Others, m_Destination.m_iX, m_Destination.m_iY);
+            }
             Destination previousDestination = m_Destination.m_Previous;
             while (previousDestination.m_Previous != null)
             {
                 m_PathToDestination.Push(previousDestination);
+                if(Network.isClient || Network.isServer)
+                {
+                    networkView.RPC("AddPathDestination", RPCMode.Others, previousDestination.m_iX, previousDestination.m_iY);
+                }
                 previousDestination = previousDestination.m_Previous;
             }
-
             m_CurrentPathDestination = m_PathToDestination.Pop();
+            GetComponent<GridElement>().m_iX = m_CurrentPathDestination.m_iX;
+            GetComponent<GridElement>().m_iY = m_CurrentPathDestination.m_iY;
             HideDestinations();
             m_fStartTime = Time.time;
             m_vStartPosition = transform.position;
             m_vEndPosition = new Vector3(m_CurrentPathDestination.m_iX * 10, m_CurrentPathDestination.m_iY * 10, -0.05f);
             m_bMoving = true;
+            if (Network.isClient || Network.isServer)
+            {
+                networkView.RPC("EndPath", RPCMode.Others);
+            }
         }
         return m_bMoving;
     }

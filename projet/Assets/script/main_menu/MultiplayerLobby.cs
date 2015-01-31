@@ -41,6 +41,7 @@ public class MultiplayerLobby : MonoBehaviour
         {
             m_Panels[i].SetActive(false);
             m_Panels[i].transform.GetChild(0).GetComponent<Text>().text = "";
+            m_PlayerReadyCheckmark[i].SetActive(false);
             if(i >= _iMaxPlayerCount)
             {
                 m_PlayerSlotPanels[i].SetActive(false);

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class game : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class game : MonoBehaviour
     bool m_bCharacterMoving = false;
     public GameObject m_OverRect;
     public GameObject m_SelectedRect;
+    public Text m_PlayerTurn;
 
     //players
     private int m_iCurrentPlayerId = 1;
@@ -22,7 +24,6 @@ public class game : MonoBehaviour
     private int m_iCurrentTurnPlayerId = 0;
     private int m_iCurrentTurn = 0;
     private bool m_bAutoEndTurn = true;
-    private int[] m_tPlayerTeams = { 0, 1, 2, 1 };
 
     float m_fCumulativeMouseMove = 0;
     Vector3 m_vLastMousePos;
@@ -35,29 +36,35 @@ public class game : MonoBehaviour
         m_vCharacterList = new List<Character>();
         m_WorldMap.loadMap(GlobalVariables.m_szMapToLoad);
         List<Spawn> spawns = m_WorldMap.GetSpawnList();
-        foreach( Spawn spawn in spawns)
+        foreach (Spawn spawn in spawns)
         {
-            if(spawn.m_iPlayerID == m_iCurrentPlayerId)
+            GridElement elem = spawn.GetComponent<GridElement>();
+            if (Network.isServer)
             {
-                GridElement elem = spawn.GetComponent<GridElement>();
-                if(Network.isClient || Network.isServer)
-                {
-                    networkView.RPC("AddCharacter", RPCMode.All, elem.m_iX, elem.m_iY, 10, m_iCurrentPlayerId, m_iCurrentPlayerTeam);
-                }
-                else
-                {
-                    AddCharacter(elem.m_iX, elem.m_iY, 10, m_iCurrentPlayerId, m_iCurrentPlayerTeam);
-                }
+                NetworkViewID ViewID = Network.AllocateViewID();
+                networkView.RPC("AddCharacter", RPCMode.All, elem.m_iX, elem.m_iY, 10, spawn.m_iPlayerID, (spawn.m_iPlayerID - 1) % 2 + 1, ViewID);
+            }
+            else if (!Network.isClient)
+            {
+                AddCharacter(elem.m_iX, elem.m_iY, 10, spawn.m_iPlayerID, (spawn.m_iPlayerID - 1) % 2 + 1, new NetworkViewID());
             }
         }
-        NextTurn();
+        if (Network.isServer)
+        {
+            networkView.RPC("NextTurn", RPCMode.All);
+        }
+        else if (!Network.isClient)
+        {
+            NextTurn();
+        }
     }
     [RPC]
-    void AddCharacter(int _iX, int _iY, int _iMouvementPoints, int _iPlayerID, int _iTeam)
+    void  AddCharacter(int _iX, int _iY, int _iMouvementPoints, int _iPlayerID, int _iTeam, NetworkViewID _ViewID)
     {
         Character newCharacter = m_WorldMap.instanciateCharacter(_iX, _iY);
         newCharacter.Init(_iMouvementPoints, _iPlayerID, _iTeam, m_vCharacterList, m_WorldMap);
         m_vCharacterList.Add(newCharacter);
+        newCharacter.networkView.viewID = _ViewID;
     }
     [RPC]
     void NextTurn()
@@ -80,6 +87,7 @@ public class game : MonoBehaviour
                 }
             }
         }
+        m_PlayerTurn.text = m_iCurrentTurnPlayerId.ToString();
     }
     // Update is called once per frame
     void Update()
@@ -230,7 +238,14 @@ public class game : MonoBehaviour
             }
             if (bEndTurn)
             {
-                NextTurn();
+                if (Network.isServer || Network.isClient)
+                {
+                    networkView.RPC("NextTurn", RPCMode.All);
+                }
+                else
+                {
+                    NextTurn();
+                }
             }
         }
     }
@@ -250,8 +265,14 @@ public class game : MonoBehaviour
                 m_SelectedChar = null;
                 m_SelectedRect.SetActive(false);
             }
-            NextTurn();
+            if (Network.isServer || Network.isClient)
+            {
+                networkView.RPC("NextTurn", RPCMode.All);
+            }
+            else
+            {
+                NextTurn();
+            }
         }
     }
-
 }

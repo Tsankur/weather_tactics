@@ -114,6 +114,7 @@ public class MainMenu : MonoBehaviour
     public void SetMapName(string _szMapName)
     {
         m_szMapName = _szMapName;
+        GlobalVariables.m_szMapToLoad = _szMapName;
         m_MultiplayerCreateButton.interactable = true;
     }
 
@@ -219,15 +220,16 @@ public class MainMenu : MonoBehaviour
         }
     }
     [RPC]
-    void SetMaxPlayerCount(int _iMaxPlayerCount)
+    void SetGameInfos(int _iMaxPlayerCount, string _szMapName)
     {
         m_iMaxPlayerCount = _iMaxPlayerCount;
         m_MultiplayerLobby.Reset(m_iMaxPlayerCount);
         m_PlayerList = new Player[m_iMaxPlayerCount];
+        GlobalVariables.m_szMapToLoad = _szMapName;
     }
     void OnPlayerConnected(NetworkPlayer _oPlayer)
     {
-        networkView.RPC("SetMaxPlayerCount", _oPlayer, m_iMaxPlayerCount);
+        networkView.RPC("SetGameInfos", _oPlayer, m_iMaxPlayerCount, m_szMapName);
         for (int i = 0; i < m_iMaxPlayerCount; i++)
         {
             if (m_PlayerList[i] != null)
@@ -247,6 +249,7 @@ public class MainMenu : MonoBehaviour
                 if (m_PlayerList[i].m_oPlayer == _oPlayer)
                 {
                     networkView.RPC("SetPlayerSlot", RPCMode.All, i, -1, "", _oPlayer);
+                    m_MultiplayerLaunchButton.interactable = false;
                     break;
                 }
             }
@@ -258,6 +261,7 @@ public class MainMenu : MonoBehaviour
         Network.maxConnections = -1;
         MasterServer.RegisterHost("WeatherTactics", "Tsan game", "closed");
         MasterServer.UnregisterHost();
+        networkView.RPC("LaunchGame", RPCMode.All);
     }
     public void StopServer()
     {
@@ -314,10 +318,28 @@ public class MainMenu : MonoBehaviour
     }
 
     [RPC]
+    void LaunchGame()
+    {
+        Application.LoadLevel("ingame");
+    }
+
+    [RPC]
     void SetPlayerReady(int _iSlot, bool _bReady)
     {
         m_PlayerList[_iSlot].m_bReady = _bReady;
         m_MultiplayerLobby.SetPlayerReady(_iSlot, _bReady);
+        if(Network.isServer)
+        {
+            bool bReadyToLaunch = true;
+            for(int i = 0; i < m_iMaxPlayerCount; i++)
+            {
+                if(m_PlayerList[i] == null || !m_PlayerList[i].m_bReady)
+                {
+                    bReadyToLaunch = false;
+                }
+            }
+            m_MultiplayerLaunchButton.interactable = bReadyToLaunch;
+        }
     }
     [RPC]
     void SetPlayerSlot(int _ioldSlot, int _iSlot, string _szPseudo, NetworkPlayer _oPlayer)

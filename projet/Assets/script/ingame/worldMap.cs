@@ -27,8 +27,8 @@ public class worldMap : MonoBehaviour
 
     public Character instanciateCharacter(int _iX, int _iY)
     {
-        m_tCharacterGridElements[_iX, _iY] = (GameObject)Instantiate(m_CharacterPrefab, new Vector3(_iX * 10, _iY * 10, -0.04f), Quaternion.identity);
-        GridElement gridElem = m_tCharacterGridElements[_iX, _iY].GetComponent<GridElement>();
+        GameObject newCharater = (GameObject)Instantiate(m_CharacterPrefab, new Vector3(_iX * 10, _iY * 10, -0.04f), Quaternion.identity);
+        GridElement gridElem = newCharater.GetComponent<GridElement>();
         gridElem.Init(_iX, _iY, 4);
         return gridElem.GetComponent<Character>();
     }
@@ -54,7 +54,7 @@ public class worldMap : MonoBehaviour
             {
                 m_iWidth = br.ReadInt32();
                 m_iHeight = br.ReadInt32();
-                int iSpawnCount = br.ReadInt32();
+                int iPlayerCount = br.ReadInt32();
 
                 m_tTerrainGridElements = new GameObject[m_iWidth, m_iHeight];
                 m_tRiverGridElements = new GameObject[m_iWidth, m_iHeight];
@@ -126,6 +126,7 @@ public class worldMap : MonoBehaviour
 
                     }
                 }
+                int iSpawnCount = br.ReadInt32();
                 for (int i = 0; i < iSpawnCount; i++)
                 {
                     int iX = br.ReadInt32();
@@ -133,6 +134,7 @@ public class worldMap : MonoBehaviour
                     int iPlayerID = br.ReadInt32();
                     
                     GameObject newSpawn = (GameObject)Instantiate(m_SpawnPrefab, new Vector3(iX * 10, iY * 10), Quaternion.identity);
+                    newSpawn.renderer.enabled = false;
                     newSpawn.GetComponent<GridElement>().Init(iX, iY, 0);
                     newSpawn.transform.SetParent(m_GridHolder.transform);
                     Spawn spawn = newSpawn.GetComponent<Spawn>();
