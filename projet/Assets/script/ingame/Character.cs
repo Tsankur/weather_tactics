@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 
+
 public class Character : MonoBehaviour
 {
     public GridElement m_GridElement;
@@ -20,7 +21,7 @@ public class Character : MonoBehaviour
 
     // movement
     bool m_bMoving = false;
-    private float m_fSpeed = 2.0f;
+    private float m_fSpeed = 4.0f;
     private float m_fStartTime;
     private Vector3 m_vStartPosition;
     private Vector3 m_vEndPosition;
@@ -30,6 +31,7 @@ public class Character : MonoBehaviour
     Destination m_CurrentPathDestination = null;
     private List<Character> m_vCharacterList;
     private worldMap m_WorldMap;
+    Destination m_LastPosition = null;
 
     public int m_iTeam = 0;
     public int m_iPlayerID = 0;
@@ -41,6 +43,10 @@ public class Character : MonoBehaviour
     public bool IsTurnFinish()
     {
         return m_bActionDone;
+    }
+    public bool CanMove()
+    {
+        return !m_bMovementDone;
     }
     public void ResetTurn()
     {
@@ -72,7 +78,7 @@ public class Character : MonoBehaviour
                     m_bMoving = false;
                     m_CurrentPathDestination = null;
                     m_bMovementDone = true;
-                    m_bActionDone = true;
+                    //m_bActionDone = true;
                 }
             }
         }
@@ -398,6 +404,7 @@ public class Character : MonoBehaviour
         m_Destination = m_vAvailableDestinations.Find(destination => destination == new Destination(_iX, _iY, 0));
         if (m_Destination != null)
         {
+            m_LastPosition = new Destination(m_GridElement.m_iX, m_GridElement.m_iY, 0);
             m_PathToDestination.Push(m_Destination);
             if (Network.isClient || Network.isServer)
             {
@@ -427,5 +434,38 @@ public class Character : MonoBehaviour
             }
         }
         return m_bMoving;
+    }
+    public void Act(Action _Action)
+    {
+        m_LastPosition = null;
+    }
+    public void EndMove()
+    {
+        m_bMovementDone = true;
+    }
+    public void Cancel()
+    {
+        m_bMoving = false;
+        m_CurrentPathDestination = null;
+        m_bMovementDone = false;
+        if (m_LastPosition != null)
+        {
+            m_PathToDestination.Clear();
+            if (Network.isClient || Network.isServer)
+            {
+                networkView.RPC("StartPath", RPCMode.Others);
+                networkView.RPC("AddPathDestination", RPCMode.Others, m_LastPosition.m_iX, m_LastPosition.m_iY);
+                networkView.RPC("EndPath", RPCMode.Others);
+            }
+            transform.position = new Vector3(m_LastPosition.m_iX * 10, m_LastPosition.m_iY * 10, -0.05f);
+            GetComponent<GridElement>().m_iX = m_LastPosition.m_iX;
+            GetComponent<GridElement>().m_iY = m_LastPosition.m_iY;
+        }
+    }
+    public void Wait()
+    {
+        m_bActionDone = true;
+        m_CurrentPathDestination = null;
+        m_LastPosition = null;
     }
 }

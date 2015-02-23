@@ -13,6 +13,7 @@ public class worldMap : MonoBehaviour
     public Material[] m_vMaterials;
     private int m_iWidth = 0;
     private int m_iHeight = 0;
+    private int m_iPlayerCount = 0;
     private GameObject[,] m_tTerrainGridElements;
     private GameObject[,] m_tRiverGridElements;
     private GameObject[,] m_tConstructionGridElements;
@@ -54,7 +55,7 @@ public class worldMap : MonoBehaviour
             {
                 m_iWidth = br.ReadInt32();
                 m_iHeight = br.ReadInt32();
-                int iPlayerCount = br.ReadInt32();
+                m_iPlayerCount = br.ReadInt32();
 
                 m_tTerrainGridElements = new GameObject[m_iWidth, m_iHeight];
                 m_tRiverGridElements = new GameObject[m_iWidth, m_iHeight];
@@ -170,6 +171,10 @@ public class worldMap : MonoBehaviour
     public int GetMapHeight()
     {
         return m_iHeight;
+    }
+    public int GetPlayerCount()
+    {
+        return m_iPlayerCount;
     }
     public List<Spawn> GetSpawnList()
     {

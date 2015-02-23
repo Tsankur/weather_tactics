@@ -181,7 +181,7 @@ public class MainMenu : MonoBehaviour
             if (File.Exists(szFilePath))
             {
                 BinaryReader br;
-                //create the file
+                //create the file reader
                 try
                 {
                     br = new BinaryReader(new FileStream(szFilePath, FileMode.Open));

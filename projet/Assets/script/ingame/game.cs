@@ -2,8 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+
+public enum Action { Move, Attack, Magic };
 
 public class game : MonoBehaviour
 {
@@ -16,6 +19,8 @@ public class game : MonoBehaviour
     public GameObject m_OverRect;
     public GameObject m_SelectedRect;
     public Text m_PlayerTurn;
+    public GameObject m_ActionPanel;
+    public Toggle[] m_ActionToggles;
 
     //players
     private int m_iCurrentPlayerId = 1;
@@ -35,6 +40,8 @@ public class game : MonoBehaviour
         m_iCurrentPlayerTeam = GlobalVariables.m_iCurrentPlayerTeam;
         m_vCharacterList = new List<Character>();
         m_WorldMap.loadMap(GlobalVariables.m_szMapToLoad);
+        m_iPlayerCount = m_WorldMap.GetPlayerCount();
+        //Debug.Log(m_iPlayerCount);
         List<Spawn> spawns = m_WorldMap.GetSpawnList();
         foreach (Spawn spawn in spawns)
         {
@@ -59,7 +66,7 @@ public class game : MonoBehaviour
         }
     }
     [RPC]
-    void  AddCharacter(int _iX, int _iY, int _iMouvementPoints, int _iPlayerID, int _iTeam, NetworkViewID _ViewID)
+    void AddCharacter(int _iX, int _iY, int _iMouvementPoints, int _iPlayerID, int _iTeam, NetworkViewID _ViewID)
     {
         Character newCharacter = m_WorldMap.instanciateCharacter(_iX, _iY);
         newCharacter.Init(_iMouvementPoints, _iPlayerID, _iTeam, m_vCharacterList, m_WorldMap);
@@ -75,8 +82,11 @@ public class game : MonoBehaviour
             m_iCurrentTurnPlayerId = 1;
             m_iCurrentTurn++;
         }
-        //m_iCurrentPlayerId = m_iCurrentTurnPlayerId; // a commenter pour le multi cela sert au multi joueur local.
-        //m_iCurrentPlayerTeam = m_tPlayerTeams[m_iCurrentPlayerId];// a commenter pour le multi cela sert au multi joueur local.
+        if (!Network.isClient && !Network.isServer)
+        {
+            m_iCurrentPlayerId = m_iCurrentTurnPlayerId;
+            m_iCurrentPlayerTeam = (m_iCurrentPlayerId - 1) % 2 + 1;
+        }
         if (m_iCurrentPlayerId == m_iCurrentTurnPlayerId)
         {
             foreach (Character character in m_vCharacterList)
@@ -133,6 +143,8 @@ public class game : MonoBehaviour
                                     if (m_SelectedChar != null)
                                     {
                                         m_SelectedChar.GetComponent<Character>().HideDestinations();
+                                        m_SelectedChar.GetComponent<Character>().Cancel();
+                                        m_ActionPanel.SetActive(false);
                                     }
                                     m_SelectedChar = gridElem;
                                     m_SelectedRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
@@ -143,11 +155,13 @@ public class game : MonoBehaviour
                                         {
                                             m_SelectedChar.GetComponent<Character>().ShowDestinations();
                                             m_SelectedRect.renderer.material.color = Color.white;
+                                            SetActions();
                                         }
                                         else
                                         {
                                             m_SelectedChar = null;
                                             m_SelectedRect.SetActive(false);
+                                            m_ActionPanel.SetActive(false);
                                         }
                                     }
                                     else
@@ -166,10 +180,22 @@ public class game : MonoBehaviour
                                 {
                                     if (m_SelectedChar != null)
                                     {
-                                        m_SelectedChar.GetComponent<Character>().HideDestinations();
+                                        if (m_SelectedChar.GetComponent<Character>().CanMove())
+                                        {
+                                            m_SelectedChar.GetComponent<Character>().EndMove();
+                                            m_ActionPanel.SetActive(true);
+                                            m_SelectedChar.GetComponent<Character>().HideDestinations();
+                                        }
+                                        else
+                                        {
+                                            m_SelectedChar.GetComponent<Character>().Cancel();
+                                            m_SelectedRect.transform.position = new Vector3(m_SelectedChar.m_iX * 10, m_SelectedChar.m_iY * 10, -0.06f);
+                                            m_ActionPanel.SetActive(false);
+                                            m_SelectedChar.GetComponent<Character>().ShowDestinations();
+                                        }
                                     }
-                                    m_SelectedChar = null;
-                                    m_SelectedRect.SetActive(false);
+                                    //m_SelectedChar = null;
+                                    //m_SelectedRect.SetActive(false);
                                 }
                             }
                             else
@@ -177,6 +203,8 @@ public class game : MonoBehaviour
                                 if (m_SelectedChar != null)
                                 {
                                     m_SelectedChar.GetComponent<Character>().HideDestinations();
+                                    m_SelectedChar.GetComponent<Character>().Cancel();
+                                    m_ActionPanel.SetActive(false);
                                 }
                                 m_SelectedChar = null;
                                 m_SelectedRect.SetActive(false);
@@ -195,6 +223,8 @@ public class game : MonoBehaviour
                 {
                     m_SelectedRect.transform.position = new Vector3(m_SelectedChar.m_iX * 10, m_SelectedChar.m_iY * 10, -0.06f);
                     m_SelectedRect.SetActive(true);
+                    m_ActionPanel.SetActive(true);
+                    SetActions();
                 }
             }
             else
@@ -202,7 +232,7 @@ public class game : MonoBehaviour
                 m_bCharacterMoving = false;
             }
         }
-        if(Input.GetMouseButton(0))
+        if (Input.GetMouseButton(0))
         {
             m_fCumulativeMouseMove += (m_vLastMousePos - Input.mousePosition).magnitude;
         }
@@ -210,6 +240,17 @@ public class game : MonoBehaviour
         {
             m_fCumulativeMouseMove = 0;
             m_MouseDownElement = null;
+        }
+        if (Input.GetMouseButtonUp(1))
+        {
+            if (m_SelectedChar != null)
+            {
+                m_SelectedChar.GetComponent<Character>().HideDestinations();
+                m_SelectedChar.GetComponent<Character>().Cancel();
+                m_SelectedRect.SetActive(false);
+                m_ActionPanel.SetActive(false);
+                m_SelectedChar = null;
+            }
         }
         if (m_SelectedChar != null)
         {
@@ -219,6 +260,7 @@ public class game : MonoBehaviour
                 {
                     m_SelectedChar = null;
                     m_SelectedRect.SetActive(false);
+                    m_ActionPanel.SetActive(false);
                 }
             }
         }
@@ -250,6 +292,12 @@ public class game : MonoBehaviour
         }
     }
 
+    //actions
+    void SetActions()
+    {
+        Character selectedChar = m_SelectedChar.GetComponent<Character>();
+    }
+
     //interface events
     public void SetAutoEndTurn(bool value)
     {
@@ -261,9 +309,11 @@ public class game : MonoBehaviour
         {
             if (m_SelectedChar != null)
             {
+                m_SelectedChar.GetComponent<Character>().Cancel();
                 m_SelectedChar.GetComponent<Character>().HideDestinations();
                 m_SelectedChar = null;
                 m_SelectedRect.SetActive(false);
+                m_ActionPanel.SetActive(false);
             }
             if (Network.isServer || Network.isClient)
             {
@@ -273,6 +323,38 @@ public class game : MonoBehaviour
             {
                 NextTurn();
             }
+        }
+    }
+    public void SetAction(int _Action)
+    {
+        Debug.Log(_Action);
+        if (m_ActionToggles[_Action].interactable)
+        {
+            m_SelectedChar.GetComponent<Character>().HideDestinations();
+            if (_Action == (int)Action.Move)
+            {
+                m_SelectedChar.GetComponent<Character>().ShowDestinations();
+            }
+        }
+    }
+    public void CancelButtonClic()
+    {
+        if (m_SelectedChar != null)
+        {
+            m_SelectedChar.GetComponent<Character>().Cancel();
+            m_SelectedRect.transform.position = new Vector3(m_SelectedChar.m_iX * 10, m_SelectedChar.m_iY * 10, -0.06f);
+            m_ActionPanel.SetActive(false);
+            m_SelectedChar.GetComponent<Character>().ShowDestinations();
+        }
+    }
+    public void WaitButtonClic()
+    {
+        if (m_SelectedChar != null)
+        {
+            m_SelectedChar.GetComponent<Character>().Wait();
+            m_SelectedRect.SetActive(false);
+            m_ActionPanel.SetActive(false);
+            m_SelectedChar = null;
         }
     }
 }
