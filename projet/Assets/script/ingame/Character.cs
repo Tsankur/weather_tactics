@@ -33,8 +33,13 @@ public class Character : MonoBehaviour
     private worldMap m_WorldMap;
     Destination m_LastPosition = null;
 
+    // player
     public int m_iTeam = 0;
     public int m_iPlayerID = 0;
+
+    // actions
+    Weapon m_Weapon;
+    Action m_SelectedAction = Action.None;
 
     public bool IsMoving()
     {
@@ -94,6 +99,9 @@ public class Character : MonoBehaviour
         m_bClimbing = _bClimbing;
         m_bNavigation = _bNavigation;
         m_vAvailableDestinations = new List<Destination>();
+        m_Weapon = new Weapon();
+        m_Weapon.Init(2, 3, 5, 1, 1.0f, Caracteristic.Agility);
+
     }
 
     public void ComputeAvailableDestinations()
@@ -396,6 +404,7 @@ public class Character : MonoBehaviour
     }
     public bool SetDestination(int _iX, int _iY)
     {
+        m_SelectedAction = Action.None;
         m_PathToDestination.Clear();
         if (Network.isClient || Network.isServer)
         {
@@ -435,9 +444,70 @@ public class Character : MonoBehaviour
         }
         return m_bMoving;
     }
-    public void Act(Action _Action)
+
+    // Action management
+    public List<Action> getActions()
     {
-        m_LastPosition = null;
+        List<Action> Actions = new List<Action>();
+        foreach(Character character in m_vCharacterList)
+        {
+            if(character.m_iTeam != m_iTeam)
+            {
+                int distance = Mathf.Abs(character.GetComponent<GridElement>().m_iX - GetComponent<GridElement>().m_iX) + Mathf.Abs(character.GetComponent<GridElement>().m_iY - GetComponent<GridElement>().m_iY);
+                if(distance >= m_Weapon.m_iMinRange && distance <= m_Weapon.m_iMaxRange)
+                {
+                    Debug.Log("attack possible");
+                    Actions.Add(Action.Attack);
+                    break;
+                }
+            }
+        }
+        return Actions;
+    }
+    public void ShowActiontTargets(Action _Action)
+    {
+        m_SelectedAction = _Action;
+        int iMinRange = 0;
+        int iMaxRange = 0;
+        bool allyAction = false;
+        if (_Action == Action.Attack)
+        {
+            iMinRange = m_Weapon.m_iMinRange;
+            iMaxRange = m_Weapon.m_iMaxRange;
+        }
+        foreach (Character character in m_vCharacterList)
+        {
+            if ((character.m_iTeam != m_iTeam && !allyAction) || (character.m_iTeam == m_iTeam && allyAction))
+            {
+                GridElement characterGridElem = character.GetComponent<GridElement>();
+                int distance = Mathf.Abs(characterGridElem.m_iX - GetComponent<GridElement>().m_iX) + Mathf.Abs(characterGridElem.m_iY - GetComponent<GridElement>().m_iY);
+                if (distance >= iMinRange && distance <= iMaxRange)
+                {
+                    GameObject newTargetGridElement = (GameObject)Instantiate(m_DestinationPrefab, new Vector3(characterGridElem.m_iX * 10, characterGridElem.m_iY * 10, -0.04f), Quaternion.identity);
+                    if (allyAction)
+                    {
+                        newTargetGridElement.renderer.material.color = new Color(0,1,0,0.36f);
+                    }
+                    else
+                    {
+                        newTargetGridElement.renderer.material.color = new Color(1, 0, 0, 0.36f);
+                    }
+                    newTargetGridElement.GetComponent<GridElement>().m_iX = characterGridElem.m_iX;
+                    newTargetGridElement.GetComponent<GridElement>().m_iY = characterGridElem.m_iY;
+                    newTargetGridElement.GetComponent<GridElement>().m_iLayer = 10;
+                    newTargetGridElement.transform.SetParent(m_DestinationHolder);
+                }
+            }
+        }
+    }
+    public void Act(int _iPosX, int _iPosY)
+    {
+        if(m_SelectedAction != Action.None)
+        {
+            m_SelectedAction = Action.None;
+            m_bActionDone = true;
+            HideDestinations();
+        }
     }
     public void EndMove()
     {

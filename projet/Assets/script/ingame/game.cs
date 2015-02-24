@@ -6,7 +6,7 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public enum Action { Move, Attack, Magic };
+public enum Action { None, Attack, Skill1, Skill2, Skill3, Power };
 
 public class game : MonoBehaviour
 {
@@ -21,6 +21,7 @@ public class game : MonoBehaviour
     public Text m_PlayerTurn;
     public GameObject m_ActionPanel;
     public Toggle[] m_ActionToggles;
+    public bool m_bActionSelected = false;
 
     //players
     private int m_iCurrentPlayerId = 1;
@@ -32,6 +33,8 @@ public class game : MonoBehaviour
 
     float m_fCumulativeMouseMove = 0;
     Vector3 m_vLastMousePos;
+
+
 
     // Use this for initialization
     void Start()
@@ -112,7 +115,7 @@ public class game : MonoBehaviour
                 m_OverRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
                 if (m_SelectedChar != null)
                 {
-                    if (gridElem.m_iLayer == 10)
+                    if (gridElem.m_iLayer == 10 && !m_bActionSelected)
                     {
                         m_SelectedChar.GetComponent<Character>().SetOverDestination(gridElem.m_iX, gridElem.m_iY);
                     }
@@ -128,17 +131,91 @@ public class game : MonoBehaviour
                     {
                         if (m_MouseDownElement == gridElem)
                         {
-                            if (gridElem.m_iLayer == 10)
+                            if (m_bActionSelected)
                             {
-                                if (m_SelectedChar != null)
+                                if (gridElem.m_iLayer == 10)
                                 {
-                                    m_bCharacterMoving = m_SelectedChar.GetComponent<Character>().SetDestination(gridElem.m_iX, gridElem.m_iY);
-                                    m_SelectedRect.SetActive(false);
+                                    if (m_SelectedChar != null)
+                                    {
+                                        m_SelectedChar.GetComponent<Character>().Act(gridElem.m_iX, gridElem.m_iY);
+                                        m_SelectedRect.SetActive(false);
+                                        m_bActionSelected = false;
+                                    }
                                 }
                             }
-                            else if (gridElem.m_iLayer == 4)
+                            else
                             {
-                                if (m_SelectedChar != gridElem)
+                                if (gridElem.m_iLayer == 10)
+                                {
+                                    if (m_SelectedChar != null)
+                                    {
+                                        m_bCharacterMoving = m_SelectedChar.GetComponent<Character>().SetDestination(gridElem.m_iX, gridElem.m_iY);
+                                        m_SelectedRect.SetActive(false);
+                                    }
+                                }
+                                else if (gridElem.m_iLayer == 4)
+                                {
+                                    if (m_SelectedChar != gridElem)
+                                    {
+                                        if (m_SelectedChar != null)
+                                        {
+                                            m_SelectedChar.GetComponent<Character>().HideDestinations();
+                                            m_SelectedChar.GetComponent<Character>().Cancel();
+                                            m_ActionPanel.SetActive(false);
+                                        }
+                                        m_SelectedChar = gridElem;
+                                        m_SelectedRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
+                                        m_SelectedRect.SetActive(true);
+                                        if (m_iCurrentPlayerId == gridElem.GetComponent<Character>().m_iPlayerID)
+                                        {
+                                            if (!gridElem.GetComponent<Character>().IsTurnFinish())
+                                            {
+                                                m_SelectedChar.GetComponent<Character>().ShowDestinations();
+                                                m_SelectedRect.renderer.material.color = Color.white;
+                                            }
+                                            else
+                                            {
+                                                m_SelectedChar = null;
+                                                m_SelectedRect.SetActive(false);
+                                                m_ActionPanel.SetActive(false);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (m_iCurrentPlayerTeam == gridElem.GetComponent<Character>().m_iTeam)
+                                            {
+                                                m_SelectedRect.renderer.material.color = Color.yellow;
+                                            }
+                                            else
+                                            {
+                                                m_SelectedRect.renderer.material.color = Color.red;
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (m_SelectedChar != null)
+                                        {
+                                            if (m_SelectedChar.GetComponent<Character>().CanMove())
+                                            {
+                                                m_SelectedChar.GetComponent<Character>().EndMove();
+                                                m_ActionPanel.SetActive(true);
+                                                m_SelectedChar.GetComponent<Character>().HideDestinations();
+                                                SetActions();
+                                            }
+                                            else
+                                            {
+                                                m_SelectedChar.GetComponent<Character>().Cancel();
+                                                m_SelectedRect.transform.position = new Vector3(m_SelectedChar.m_iX * 10, m_SelectedChar.m_iY * 10, -0.06f);
+                                                m_ActionPanel.SetActive(false);
+                                                m_SelectedChar.GetComponent<Character>().ShowDestinations();
+                                            }
+                                        }
+                                        //m_SelectedChar = null;
+                                        //m_SelectedRect.SetActive(false);
+                                    }
+                                }
+                                else
                                 {
                                     if (m_SelectedChar != null)
                                     {
@@ -146,68 +223,9 @@ public class game : MonoBehaviour
                                         m_SelectedChar.GetComponent<Character>().Cancel();
                                         m_ActionPanel.SetActive(false);
                                     }
-                                    m_SelectedChar = gridElem;
-                                    m_SelectedRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
-                                    m_SelectedRect.SetActive(true);
-                                    if (m_iCurrentPlayerId == gridElem.GetComponent<Character>().m_iPlayerID)
-                                    {
-                                        if (!gridElem.GetComponent<Character>().IsTurnFinish())
-                                        {
-                                            m_SelectedChar.GetComponent<Character>().ShowDestinations();
-                                            m_SelectedRect.renderer.material.color = Color.white;
-                                            SetActions();
-                                        }
-                                        else
-                                        {
-                                            m_SelectedChar = null;
-                                            m_SelectedRect.SetActive(false);
-                                            m_ActionPanel.SetActive(false);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (m_iCurrentPlayerTeam == gridElem.GetComponent<Character>().m_iTeam)
-                                        {
-                                            m_SelectedRect.renderer.material.color = Color.yellow;
-                                        }
-                                        else
-                                        {
-                                            m_SelectedRect.renderer.material.color = Color.red;
-                                        }
-                                    }
+                                    m_SelectedChar = null;
+                                    m_SelectedRect.SetActive(false);
                                 }
-                                else
-                                {
-                                    if (m_SelectedChar != null)
-                                    {
-                                        if (m_SelectedChar.GetComponent<Character>().CanMove())
-                                        {
-                                            m_SelectedChar.GetComponent<Character>().EndMove();
-                                            m_ActionPanel.SetActive(true);
-                                            m_SelectedChar.GetComponent<Character>().HideDestinations();
-                                        }
-                                        else
-                                        {
-                                            m_SelectedChar.GetComponent<Character>().Cancel();
-                                            m_SelectedRect.transform.position = new Vector3(m_SelectedChar.m_iX * 10, m_SelectedChar.m_iY * 10, -0.06f);
-                                            m_ActionPanel.SetActive(false);
-                                            m_SelectedChar.GetComponent<Character>().ShowDestinations();
-                                        }
-                                    }
-                                    //m_SelectedChar = null;
-                                    //m_SelectedRect.SetActive(false);
-                                }
-                            }
-                            else
-                            {
-                                if (m_SelectedChar != null)
-                                {
-                                    m_SelectedChar.GetComponent<Character>().HideDestinations();
-                                    m_SelectedChar.GetComponent<Character>().Cancel();
-                                    m_ActionPanel.SetActive(false);
-                                }
-                                m_SelectedChar = null;
-                                m_SelectedRect.SetActive(false);
                             }
                         }
                     }
@@ -245,11 +263,20 @@ public class game : MonoBehaviour
         {
             if (m_SelectedChar != null)
             {
-                m_SelectedChar.GetComponent<Character>().HideDestinations();
-                m_SelectedChar.GetComponent<Character>().Cancel();
-                m_SelectedRect.SetActive(false);
-                m_ActionPanel.SetActive(false);
-                m_SelectedChar = null;
+                if(m_bActionSelected)
+                {
+                    m_ActionPanel.SetActive(true);
+                    m_bActionSelected = false;
+                    m_SelectedChar.GetComponent<Character>().HideDestinations();
+                }
+                else
+                {
+                    m_SelectedChar.GetComponent<Character>().HideDestinations();
+                    m_SelectedChar.GetComponent<Character>().Cancel();
+                    m_SelectedRect.SetActive(false);
+                    m_ActionPanel.SetActive(false);
+                    m_SelectedChar = null;
+                }
             }
         }
         if (m_SelectedChar != null)
@@ -296,6 +323,7 @@ public class game : MonoBehaviour
     void SetActions()
     {
         Character selectedChar = m_SelectedChar.GetComponent<Character>();
+        m_ActionPanel.GetComponent<ActionPanel>().SetPossibleActions(selectedChar.getActions(), selectedChar);
     }
 
     //interface events
@@ -325,17 +353,14 @@ public class game : MonoBehaviour
             }
         }
     }
-    public void SetAction(int _Action)
+    /*public void Act(Action _Action)
     {
         Debug.Log(_Action);
-        if (m_ActionToggles[_Action].interactable)
-        {
-            m_SelectedChar.GetComponent<Character>().HideDestinations();
-            if (_Action == (int)Action.Move)
-            {
-                m_SelectedChar.GetComponent<Character>().ShowDestinations();
-            }
-        }
+    }*/
+    public void SetActionSelected()
+    {
+        m_bActionSelected = true;
+        m_ActionPanel.SetActive(false);
     }
     public void CancelButtonClic()
     {
