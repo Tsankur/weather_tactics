@@ -507,6 +507,7 @@ public class Character : MonoBehaviour
             m_SelectedAction = Action.None;
             m_bActionDone = true;
             HideDestinations();
+            m_LastPosition = null;
         }
     }
     public void EndMove()
