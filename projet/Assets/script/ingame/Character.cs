@@ -12,6 +12,7 @@ public class Character : MonoBehaviour
     public Transform m_PathHolder;
     public GameObject[] m_PathPrefabs;
     public GameObject m_SelectableElem;
+    public HealthBar m_HealthBar;
     List<Destination> m_vAvailableDestinations;
     int m_iMouvementPoints = 0;
     bool m_bNavigation = false;
@@ -54,6 +55,8 @@ public class Character : MonoBehaviour
     int m_iResistance = 1;
     int m_iDodge = 1;
     int m_iLuck = 1;
+
+    int m_iHealthPoint = 10;
 
     public bool IsMoving()
     {
@@ -131,6 +134,8 @@ public class Character : MonoBehaviour
         m_iDodge = stats.m_iDodge;
         m_iLuck = stats.m_iLuck;
 
+        m_iHealthPoint = Mathf.RoundToInt(m_iVitality * 1.1f);
+        m_HealthBar.Init(m_iHealthPoint);
     }
 
     public void ComputeAvailableDestinations()
@@ -534,11 +539,46 @@ public class Character : MonoBehaviour
     {
         if(m_SelectedAction != Action.None)
         {
+            if(m_SelectedAction == Action.Attack)
+            {
+                Character target = null;
+                foreach (Character character in m_vCharacterList)
+                {
+                    GridElement characterGridElem = character.GetComponent<GridElement>();
+                    if(characterGridElem.m_iX == _iPosX && characterGridElem.m_iY == _iPosY)
+                    {
+                        target = character;
+                        break;
+                    }
+                }
+                if (target != null)
+                {
+                    if (Network.isClient || Network.isServer)
+                    {
+                        target.GetComponent<NetworkView>().RPC("UpdateHealthPoint", RPCMode.All, -2);
+                        GetComponent<NetworkView>().RPC("UpdateHealthPoint", RPCMode.All, -1);
+                    }
+                    else
+                    {
+                        target.UpdateHealthPoint(-2);
+                        UpdateHealthPoint(-1);
+                    }
+                }
+            }
             m_SelectedAction = Action.None;
             m_bActionDone = true;
             HideDestinations();
             m_LastPosition = null;
         }
+    }
+    public void UpdateHealthPoint(int _iHealthPointChange)
+    {
+        m_iHealthPoint += _iHealthPointChange;
+        if (m_iHealthPoint < 0)
+        {
+            m_iHealthPoint = 0;
+        }
+        m_HealthBar.SetHealthPoints(m_iHealthPoint);
     }
     public void EndMove()
     {
