@@ -136,7 +136,7 @@ public class editor_camera : MonoBehaviour
     void ComputeRealMaxPositions()
     {
         float fVisionHeight = m_fZoom * Mathf.Sin(Mathf.PI / 6.0f) / Mathf.Cos(Mathf.PI / 6.0f);
-        float fVisionWidth = fVisionHeight * camera.aspect;
+        float fVisionWidth = fVisionHeight * GetComponent<Camera>().aspect;
         Vector2 vMinGamezone = new Vector2(m_iLeftInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iBottomInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
         Vector2 vMaxGamezone = new Vector2(m_iRightInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iTopInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
         m_vRealMaxPosition = new Vector2(Mathf.Max((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, m_vMaxPosition.x - fVisionWidth + 5 + vMaxGamezone.x), Mathf.Max((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, m_vMaxPosition.y - fVisionHeight + 5 + vMaxGamezone.y));

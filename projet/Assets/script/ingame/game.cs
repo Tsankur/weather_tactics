@@ -52,7 +52,7 @@ public class game : MonoBehaviour
             if (Network.isServer)
             {
                 NetworkViewID ViewID = Network.AllocateViewID();
-                networkView.RPC("AddCharacter", RPCMode.All, elem.m_iX, elem.m_iY, 10, spawn.m_iPlayerID, (spawn.m_iPlayerID - 1) % 2 + 1, ViewID);
+                GetComponent<NetworkView>().RPC("AddCharacter", RPCMode.All, elem.m_iX, elem.m_iY, 10, spawn.m_iPlayerID, (spawn.m_iPlayerID - 1) % 2 + 1, ViewID);
             }
             else if (!Network.isClient)
             {
@@ -61,7 +61,7 @@ public class game : MonoBehaviour
         }
         if (Network.isServer)
         {
-            networkView.RPC("NextTurn", RPCMode.All);
+            GetComponent<NetworkView>().RPC("NextTurn", RPCMode.All);
         }
         else if (!Network.isClient)
         {
@@ -74,7 +74,7 @@ public class game : MonoBehaviour
         Character newCharacter = m_WorldMap.instanciateCharacter(_iX, _iY);
         newCharacter.Init(_iMouvementPoints, _iPlayerID, _iTeam, m_vCharacterList, m_WorldMap);
         m_vCharacterList.Add(newCharacter);
-        newCharacter.networkView.viewID = _ViewID;
+        newCharacter.GetComponent<NetworkView>().viewID = _ViewID;
     }
     [RPC]
     void NextTurn()
@@ -171,7 +171,7 @@ public class game : MonoBehaviour
                                             if (!gridElem.GetComponent<Character>().IsTurnFinish())
                                             {
                                                 m_SelectedChar.GetComponent<Character>().ShowDestinations();
-                                                m_SelectedRect.renderer.material.color = Color.white;
+                                                m_SelectedRect.GetComponent<Renderer>().material.color = Color.white;
                                             }
                                             else
                                             {
@@ -184,11 +184,11 @@ public class game : MonoBehaviour
                                         {
                                             if (m_iCurrentPlayerTeam == gridElem.GetComponent<Character>().m_iTeam)
                                             {
-                                                m_SelectedRect.renderer.material.color = Color.yellow;
+                                                m_SelectedRect.GetComponent<Renderer>().material.color = Color.yellow;
                                             }
                                             else
                                             {
-                                                m_SelectedRect.renderer.material.color = Color.red;
+                                                m_SelectedRect.GetComponent<Renderer>().material.color = Color.red;
                                             }
                                         }
                                     }
@@ -263,6 +263,11 @@ public class game : MonoBehaviour
         {
             if (m_SelectedChar != null)
             {
+
+                if (m_SelectedChar.GetComponent<Character>().m_iPlayerID == m_iCurrentPlayerId)
+                {
+                    m_SelectedChar.GetComponent<Character>().m_SelectableElem.SetActive(true);
+                }
                 if(m_bActionSelected)
                 {
                     m_ActionPanel.SetActive(true);
@@ -309,7 +314,7 @@ public class game : MonoBehaviour
             {
                 if (Network.isServer || Network.isClient)
                 {
-                    networkView.RPC("NextTurn", RPCMode.All);
+                    GetComponent<NetworkView>().RPC("NextTurn", RPCMode.All);
                 }
                 else
                 {
@@ -345,7 +350,7 @@ public class game : MonoBehaviour
             }
             if (Network.isServer || Network.isClient)
             {
-                networkView.RPC("NextTurn", RPCMode.All);
+                GetComponent<NetworkView>().RPC("NextTurn", RPCMode.All);
             }
             else
             {

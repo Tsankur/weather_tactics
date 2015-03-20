@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public enum Caracteristic { Strength, Agility, Vitality, Inteligence, Spirit};
+public enum Caracteristic { Strength, Agility, Vitality, Inteligence, Spirit };
 public class Weapon
 {
     public int m_iMinRange = 1;

@@ -166,7 +166,7 @@ public class MainMenu : MonoBehaviour
         {
             if (m_PlayerList[i] == null)
             {
-                networkView.RPC("SetPlayerSlot", RPCMode.All, -1, i, _szPsuedo, _oPlayer);
+                GetComponent<NetworkView>().RPC("SetPlayerSlot", RPCMode.All, -1, i, _szPsuedo, _oPlayer);
                 return i + 1;
             }
         }
@@ -229,13 +229,13 @@ public class MainMenu : MonoBehaviour
     }
     void OnPlayerConnected(NetworkPlayer _oPlayer)
     {
-        networkView.RPC("SetGameInfos", _oPlayer, m_iMaxPlayerCount, m_szMapName);
+        GetComponent<NetworkView>().RPC("SetGameInfos", _oPlayer, m_iMaxPlayerCount, m_szMapName);
         for (int i = 0; i < m_iMaxPlayerCount; i++)
         {
             if (m_PlayerList[i] != null)
             {
-                networkView.RPC("SetPlayerSlot", _oPlayer, -1, i, m_PlayerList[i].m_szPseudo, m_PlayerList[i].m_oPlayer);
-                networkView.RPC("SetPlayerReady", _oPlayer, i, m_PlayerList[i].m_bReady);
+                GetComponent<NetworkView>().RPC("SetPlayerSlot", _oPlayer, -1, i, m_PlayerList[i].m_szPseudo, m_PlayerList[i].m_oPlayer);
+                GetComponent<NetworkView>().RPC("SetPlayerReady", _oPlayer, i, m_PlayerList[i].m_bReady);
             }
         }
         Debug.Log("new player connected");
@@ -248,7 +248,7 @@ public class MainMenu : MonoBehaviour
             {
                 if (m_PlayerList[i].m_oPlayer == _oPlayer)
                 {
-                    networkView.RPC("SetPlayerSlot", RPCMode.All, i, -1, "", _oPlayer);
+                    GetComponent<NetworkView>().RPC("SetPlayerSlot", RPCMode.All, i, -1, "", _oPlayer);
                     m_MultiplayerLaunchButton.interactable = false;
                     break;
                 }
@@ -261,7 +261,7 @@ public class MainMenu : MonoBehaviour
         Network.maxConnections = -1;
         MasterServer.RegisterHost("WeatherTactics", "Tsan game", "closed");
         MasterServer.UnregisterHost();
-        networkView.RPC("LaunchGame", RPCMode.All);
+        GetComponent<NetworkView>().RPC("LaunchGame", RPCMode.All);
     }
     public void StopServer()
     {
@@ -280,7 +280,7 @@ public class MainMenu : MonoBehaviour
     void SetPseudo(string _szPseudo, NetworkMessageInfo _Info)
     {
         int iNewPlayerID = CreatePlayer(_szPseudo, _Info.sender);
-        networkView.RPC("SetPlayerID", _Info.sender, iNewPlayerID);
+        GetComponent<NetworkView>().RPC("SetPlayerID", _Info.sender, iNewPlayerID);
     }
     void OnConnectedToServer()
     {
@@ -291,7 +291,7 @@ public class MainMenu : MonoBehaviour
             m_MultiplayerJoinPanel.SetActive(false);
             m_MultiplayerLobbyPanel.SetActive(true);
             GlobalVariables.m_szPseudo = "test";
-            networkView.RPC("SetPseudo", RPCMode.Server, "test");
+            GetComponent<NetworkView>().RPC("SetPseudo", RPCMode.Server, "test");
         }
     }
     void OnDisconnectedFromServer(NetworkDisconnection _oInfo)
@@ -307,7 +307,7 @@ public class MainMenu : MonoBehaviour
     public void ReadyButtonPressed()
     {
         m_bReady = !m_bReady;
-        networkView.RPC("SetPlayerReady", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, m_bReady);
+        GetComponent<NetworkView>().RPC("SetPlayerReady", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, m_bReady);
     }
     public void DisconnectFromServer()
     {
@@ -369,12 +369,12 @@ public class MainMenu : MonoBehaviour
         {
             m_bReady = false;
         }
-        networkView.RPC("SetPlayerSlot", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, _iID, GlobalVariables.m_szPseudo, Network.player);
+        GetComponent<NetworkView>().RPC("SetPlayerSlot", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, _iID, GlobalVariables.m_szPseudo, Network.player);
         GlobalVariables.m_iCurrentPlayerId = _iID + 1;
         GlobalVariables.m_iCurrentPlayerTeam = _iID % 2 + 1;
         if (Network.isServer)
         {
-            networkView.RPC("SetPlayerReady", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, true);
+            GetComponent<NetworkView>().RPC("SetPlayerReady", RPCMode.All, GlobalVariables.m_iCurrentPlayerId - 1, true);
         }
     }
 }

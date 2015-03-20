@@ -35,11 +35,11 @@ public class ingame_camera : MonoBehaviour
         int iCenterHeight = Screen.height - (m_iTopInterfaceHeight + m_iBottomInterfaceHeight);
         if(iCenterWidth > iCenterHeight)
         {
-            camera.orthographicSize = 100.0f * (float)Screen.height / (float)iCenterHeight / 2;
+            GetComponent<Camera>().orthographicSize = 100.0f * (float)Screen.height / (float)iCenterHeight / 2;
         }
         else
         {
-            camera.orthographicSize = 100.0f * (float)Screen.width / (float)iCenterWidth / camera.aspect / 2;
+            GetComponent<Camera>().orthographicSize = 100.0f * (float)Screen.width / (float)iCenterWidth / GetComponent<Camera>().aspect / 2;
         }
         transform.position = new Vector3(transform.position.x, transform.position.y, -50);
     }
@@ -55,7 +55,7 @@ public class ingame_camera : MonoBehaviour
         if (m_bMoving)
         {
             //transform.position += (m_vLastMousePosition - Input.mousePosition) / (800.0f / m_fZoom);
-            transform.position += (m_vLastMousePosition - Input.mousePosition) / 450.0f * camera.orthographicSize;
+            transform.position += (m_vLastMousePosition - Input.mousePosition) / 450.0f * GetComponent<Camera>().orthographicSize;
             ClampPosition();
             m_vLastMousePosition = Input.mousePosition;
         }
@@ -90,8 +90,8 @@ public class ingame_camera : MonoBehaviour
     {
         /*float fVisionHeight = m_fZoom * Mathf.Sin(Mathf.PI / 6.0f) / Mathf.Cos(Mathf.PI / 6.0f);
         float fVisionWidth = fVisionHeight * camera.aspect;*/
-        float fVisionHeight = camera.orthographicSize;
-        float fVisionWidth = fVisionHeight * camera.aspect;
+        float fVisionHeight = GetComponent<Camera>().orthographicSize;
+        float fVisionWidth = fVisionHeight * GetComponent<Camera>().aspect;
         Vector2 vMinGamezone = new Vector2(m_iLeftInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iBottomInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
         Vector2 vMaxGamezone = new Vector2(m_iRightInterfaceWidth / (float)Screen.width * fVisionWidth * 2, m_iTopInterfaceHeight / (float)Screen.height * fVisionHeight * 2);
         m_vRealMaxPosition = new Vector2(Mathf.Max((m_vMaxPosition.x - vMinGamezone.x + vMaxGamezone.x) / 2, m_vMaxPosition.x - fVisionWidth + 5 + vMaxGamezone.x), Mathf.Max((m_vMaxPosition.y - vMinGamezone.y + vMaxGamezone.y) / 2, m_vMaxPosition.y - fVisionHeight + 5 + vMaxGamezone.y));

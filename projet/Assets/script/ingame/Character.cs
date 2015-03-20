@@ -11,6 +11,7 @@ public class Character : MonoBehaviour
     public GameObject m_DestinationPrefab;
     public Transform m_PathHolder;
     public GameObject[] m_PathPrefabs;
+    public GameObject m_SelectableElem;
     List<Destination> m_vAvailableDestinations;
     int m_iMouvementPoints = 0;
     bool m_bNavigation = false;
@@ -40,6 +41,19 @@ public class Character : MonoBehaviour
     // actions
     Weapon m_Weapon;
     Action m_SelectedAction = Action.None;
+    Classes m_Class = Classes.Marauder;
+
+    // statistics
+    int m_iVitality = 10;
+    int m_iStrength = 10;
+    int m_iAgility = 10;
+    int m_iInteligence = 10;
+    int m_iSpirit = 10;
+
+    int m_iArmor = 1;
+    int m_iResistance = 1;
+    int m_iDodge = 1;
+    int m_iLuck = 1;
 
     public bool IsMoving()
     {
@@ -58,6 +72,7 @@ public class Character : MonoBehaviour
         m_bActionDone = false;
         m_bMovementDone = false;
         ComputeAvailableDestinations();
+        m_SelectableElem.SetActive(true);
     }
     void Update()
     {
@@ -101,6 +116,20 @@ public class Character : MonoBehaviour
         m_vAvailableDestinations = new List<Destination>();
         m_Weapon = new Weapon();
         m_Weapon.Init(2, 3, 5, 1, 1.0f, Caracteristic.Agility);
+        Classes Class = (Classes)Random.Range(0, 11);
+        ClassBaseStatistics stats = gameDesignVariables.Instance.GetClassStatistics(Class);
+        Debug.Log(Class);
+
+        m_iVitality = stats.m_iVitality;
+        m_iStrength = stats.m_iStrength;
+        m_iAgility = stats.m_iAgility;
+        m_iInteligence = stats.m_iInteligence;
+        m_iSpirit = stats.m_iSpirit;
+
+        m_iArmor = stats.m_iArmor;
+        m_iResistance = stats.m_iResistance;
+        m_iDodge = stats.m_iDodge;
+        m_iLuck = stats.m_iLuck;
 
     }
 
@@ -234,6 +263,7 @@ public class Character : MonoBehaviour
     {
         if (!m_bMovementDone)
         {
+            m_SelectableElem.SetActive(false);
             foreach (Destination dest in m_vAvailableDestinations)
             {
                 bool onAnotherCharacter = false;
@@ -408,7 +438,7 @@ public class Character : MonoBehaviour
         m_PathToDestination.Clear();
         if (Network.isClient || Network.isServer)
         {
-            networkView.RPC("StartPath", RPCMode.Others);
+            GetComponent<NetworkView>().RPC("StartPath", RPCMode.Others);
         }
         m_Destination = m_vAvailableDestinations.Find(destination => destination == new Destination(_iX, _iY, 0));
         if (m_Destination != null)
@@ -417,7 +447,7 @@ public class Character : MonoBehaviour
             m_PathToDestination.Push(m_Destination);
             if (Network.isClient || Network.isServer)
             {
-                networkView.RPC("AddPathDestination", RPCMode.Others, m_Destination.m_iX, m_Destination.m_iY);
+                GetComponent<NetworkView>().RPC("AddPathDestination", RPCMode.Others, m_Destination.m_iX, m_Destination.m_iY);
             }
             Destination previousDestination = m_Destination.m_Previous;
             while (previousDestination.m_Previous != null)
@@ -425,7 +455,7 @@ public class Character : MonoBehaviour
                 m_PathToDestination.Push(previousDestination);
                 if(Network.isClient || Network.isServer)
                 {
-                    networkView.RPC("AddPathDestination", RPCMode.Others, previousDestination.m_iX, previousDestination.m_iY);
+                    GetComponent<NetworkView>().RPC("AddPathDestination", RPCMode.Others, previousDestination.m_iX, previousDestination.m_iY);
                 }
                 previousDestination = previousDestination.m_Previous;
             }
@@ -439,7 +469,7 @@ public class Character : MonoBehaviour
             m_bMoving = true;
             if (Network.isClient || Network.isServer)
             {
-                networkView.RPC("EndPath", RPCMode.Others);
+                GetComponent<NetworkView>().RPC("EndPath", RPCMode.Others);
             }
         }
         return m_bMoving;
@@ -486,11 +516,11 @@ public class Character : MonoBehaviour
                     GameObject newTargetGridElement = (GameObject)Instantiate(m_DestinationPrefab, new Vector3(characterGridElem.m_iX * 10, characterGridElem.m_iY * 10, -0.04f), Quaternion.identity);
                     if (allyAction)
                     {
-                        newTargetGridElement.renderer.material.color = new Color(0,1,0,0.36f);
+                        newTargetGridElement.GetComponent<Renderer>().material.color = new Color(0,1,0,0.36f);
                     }
                     else
                     {
-                        newTargetGridElement.renderer.material.color = new Color(1, 0, 0, 0.36f);
+                        newTargetGridElement.GetComponent<Renderer>().material.color = new Color(1, 0, 0, 0.36f);
                     }
                     newTargetGridElement.GetComponent<GridElement>().m_iX = characterGridElem.m_iX;
                     newTargetGridElement.GetComponent<GridElement>().m_iY = characterGridElem.m_iY;
@@ -524,9 +554,9 @@ public class Character : MonoBehaviour
             m_PathToDestination.Clear();
             if (Network.isClient || Network.isServer)
             {
-                networkView.RPC("StartPath", RPCMode.Others);
-                networkView.RPC("AddPathDestination", RPCMode.Others, m_LastPosition.m_iX, m_LastPosition.m_iY);
-                networkView.RPC("EndPath", RPCMode.Others);
+                GetComponent<NetworkView>().RPC("StartPath", RPCMode.Others);
+                GetComponent<NetworkView>().RPC("AddPathDestination", RPCMode.Others, m_LastPosition.m_iX, m_LastPosition.m_iY);
+                GetComponent<NetworkView>().RPC("EndPath", RPCMode.Others);
             }
             transform.position = new Vector3(m_LastPosition.m_iX * 10, m_LastPosition.m_iY * 10, -0.05f);
             GetComponent<GridElement>().m_iX = m_LastPosition.m_iX;

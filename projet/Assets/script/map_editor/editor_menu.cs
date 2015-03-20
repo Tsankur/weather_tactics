@@ -72,6 +72,41 @@ public class editor_menu : MonoBehaviour
         Network.Disconnect();
     }
 
+    void ComputeRaycast(GridElement gridElem)
+    {
+        if (m_iSelectedToolId < 18)
+        {
+            if (Network.isClient || Network.isServer)
+            {
+                GetComponent<NetworkView>().RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
+            }
+            else
+            {
+                SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
+            }
+        }
+        if (m_iSelectedToolId == 18)
+        {
+            if (gridElem.m_iLayer == 5)
+            {
+                m_SelectedSpawn = gridElem.gameObject;
+                Spawn spawn = gridElem.GetComponent<Spawn>();
+                m_SpanwOptionPopup.GetComponent<SpawnOption>().SetSelectedPlayer(spawn.m_iPlayerID);
+            }
+            else
+            {
+                if (Network.isClient || Network.isServer)
+                {
+                    GetComponent<NetworkView>().RPC("CreateSpawn", RPCMode.Others, gridElem.m_iX, gridElem.m_iY, false);
+                }
+                CreateSpawn(gridElem.m_iX, gridElem.m_iY, true);
+                m_SpanwOptionPopup.GetComponent<SpawnOption>().SetSelectedPlayer(1);
+            }
+            m_SelectedRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
+            m_SelectedRect.SetActive(true);
+            m_SpanwOptionPopup.SetActive(true);
+        }
+    }
     // Update is called once per frame
     void Update()
     {
@@ -89,14 +124,7 @@ public class editor_menu : MonoBehaviour
                     {
                         GridElement gridElem = hitInfos.collider.gameObject.GetComponent<GridElement>();
                         m_OverRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
-                        if (Network.isClient || Network.isServer)
-                        {
-                            networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
-                        }
-                        else
-                        {
-                            SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
-                        }
+                        ComputeRaycast(gridElem);
                     }
                 }
             }
@@ -111,44 +139,13 @@ public class editor_menu : MonoBehaviour
                     m_OverRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
                     if (Input.GetMouseButtonDown(0))
                     {
-                        if (m_iSelectedToolId < 18)
-                        {
-                            if (Network.isClient || Network.isServer)
-                            {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
-                            }
-                            else
-                            {
-                                SetGridElementMaterial(gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, true, 0);
-                            }
-                        }
-                        if (m_iSelectedToolId == 18)
-                        {
-                            if (gridElem.m_iLayer == 5)
-                            {
-                                m_SelectedSpawn = gridElem.gameObject;
-                                Spawn spawn = gridElem.GetComponent<Spawn>();
-                                m_SpanwOptionPopup.GetComponent<SpawnOption>().SetSelectedPlayer(spawn.m_iPlayerID);
-                            }
-                            else
-                            {
-                                if (Network.isClient || Network.isServer)
-                                {
-                                    networkView.RPC("CreateSpawn", RPCMode.Others, gridElem.m_iX, gridElem.m_iY, false);
-                                }
-                                CreateSpawn(gridElem.m_iX, gridElem.m_iY, true);
-                                m_SpanwOptionPopup.GetComponent<SpawnOption>().SetSelectedPlayer(1);
-                            }
-                            m_SelectedRect.transform.position = new Vector3(gridElem.m_iX * 10, gridElem.m_iY * 10, -0.06f);
-                            m_SelectedRect.SetActive(true);
-                            m_SpanwOptionPopup.SetActive(true);
-                        }
+                        ComputeRaycast(gridElem);
                     }
                     if (Input.GetMouseButton(0) && m_iSelectedToolId < 18)
                     {
                         if (Network.isClient || Network.isServer)
                         {
-                            networkView.RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, false, 0);
+                            GetComponent<NetworkView>().RPC("SetGridElementMaterial", RPCMode.All, gridElem.m_iX, gridElem.m_iY, m_iSelectedToolId, false, 0);
                         }
                         else
                         {
@@ -301,8 +298,8 @@ public class editor_menu : MonoBehaviour
         m_iUpdateToolId = m_iSelectedToolId;
         if (Network.isClient || Network.isServer)
         {
-            networkView.RPC("SetGridSize", RPCMode.Others, m_iNewWidth, m_iNewHeight, m_iSelectedToolId);
-            networkView.RPC("updateGrid", RPCMode.All);
+            GetComponent<NetworkView>().RPC("SetGridSize", RPCMode.Others, m_iNewWidth, m_iNewHeight, m_iSelectedToolId);
+            GetComponent<NetworkView>().RPC("updateGrid", RPCMode.All);
         }
         else
         {
@@ -356,7 +353,7 @@ public class editor_menu : MonoBehaviour
                     }
                     if (Network.isClient || Network.isServer)
                     {
-                        networkView.RPC("DeleteSpawn", RPCMode.All, i, j);
+                        GetComponent<NetworkView>().RPC("DeleteSpawn", RPCMode.All, i, j);
                     }
                     else
                     {
@@ -418,7 +415,7 @@ public class editor_menu : MonoBehaviour
     {
         if (Network.isServer || Network.isClient)
         {
-            networkView.RPC("resetMap", RPCMode.All);
+            GetComponent<NetworkView>().RPC("resetMap", RPCMode.All);
         }
         else
         {
@@ -458,7 +455,7 @@ public class editor_menu : MonoBehaviour
             GridElement elem = m_SelectedSpawn.GetComponent<GridElement>();
             if (Network.isServer || Network.isClient)
             {
-                networkView.RPC("DeleteSpawn", RPCMode.All, elem.m_iX, elem.m_iY);
+                GetComponent<NetworkView>().RPC("DeleteSpawn", RPCMode.All, elem.m_iX, elem.m_iY);
             }
             else
             {
@@ -496,7 +493,7 @@ public class editor_menu : MonoBehaviour
             GridElement elem = m_SelectedSpawn.GetComponent<GridElement>();
             if (Network.isServer || Network.isClient)
             {
-                networkView.RPC("UpdateSpawn", RPCMode.All, elem.m_iX, elem.m_iY, iPlayerId);
+                GetComponent<NetworkView>().RPC("UpdateSpawn", RPCMode.All, elem.m_iX, elem.m_iY, iPlayerId);
             }
             else
             {
@@ -688,7 +685,7 @@ public class editor_menu : MonoBehaviour
                 SetMaxPlayerCount(iPlayerCount);
                 if (Network.isServer || Network.isClient)
                 {
-                    networkView.RPC("ResetGrid", RPCMode.All, m_iNewWidth, m_iNewHeight);
+                    GetComponent<NetworkView>().RPC("ResetGrid", RPCMode.All, m_iNewWidth, m_iNewHeight);
                 }
                 else
                 {
@@ -706,18 +703,18 @@ public class editor_menu : MonoBehaviour
                         int iItemMaterialId = br.ReadInt32();
                         if(Network.isServer || Network.isClient)
                         {
-                            networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iTerrainMaterialId, false , 0);
+                            GetComponent<NetworkView>().RPC("SetGridElementMaterial", RPCMode.All, i, j, iTerrainMaterialId, false , 0);
                             if(iRiverMaterialId != 0)
                             {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iRiverMaterialId, false, iRiverRotation);
+                                GetComponent<NetworkView>().RPC("SetGridElementMaterial", RPCMode.All, i, j, iRiverMaterialId, false, iRiverRotation);
                             }
                             if (iConstructionMaterialId != 0)
                             {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iConstructionMaterialId, false, iConstructionRotation);
+                                GetComponent<NetworkView>().RPC("SetGridElementMaterial", RPCMode.All, i, j, iConstructionMaterialId, false, iConstructionRotation);
                             }
                             if (iItemMaterialId != 0)
                             {
-                                networkView.RPC("SetGridElementMaterial", RPCMode.All, i, j, iItemMaterialId, false, 0);
+                                GetComponent<NetworkView>().RPC("SetGridElementMaterial", RPCMode.All, i, j, iItemMaterialId, false, 0);
                             }
                         }
                         else
@@ -746,8 +743,8 @@ public class editor_menu : MonoBehaviour
                     int iPlayerID = br.ReadInt32();
                     if (Network.isServer || Network.isClient)
                     {
-                        networkView.RPC("CreateSpawn", RPCMode.All, iX, iY, false);
-                        networkView.RPC("UpdateSpawn", RPCMode.All, iX, iY, iPlayerID);
+                        GetComponent<NetworkView>().RPC("CreateSpawn", RPCMode.All, iX, iY, false);
+                        GetComponent<NetworkView>().RPC("UpdateSpawn", RPCMode.All, iX, iY, iPlayerID);
                     }
                     else
                     {
@@ -794,23 +791,23 @@ public class editor_menu : MonoBehaviour
     void OnPlayerConnected(NetworkPlayer _oPlayer)
     {
         Debug.Log("new player connected");
-        networkView.RPC("ResetGrid", _oPlayer, m_iNewWidth, m_iNewHeight);
+        GetComponent<NetworkView>().RPC("ResetGrid", _oPlayer, m_iNewWidth, m_iNewHeight);
         for (int i = 0; i < m_iWidth; i++)
         {
             for (int j = 0; j < m_iHeight; j++)
             {
-                networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tTerrainGridElementValues[i, j], false, 0);
+                GetComponent<NetworkView>().RPC("SetGridElementMaterial", _oPlayer, i, j, m_tTerrainGridElementValues[i, j], false, 0);
                 if (m_tRiverGridElementValues[i, j] != 0 && m_tRiverGridElements[i, j] != null)
                 {
-                    networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tRiverGridElementValues[i, j], false, (int)m_tRiverGridElements[i, j].transform.rotation.eulerAngles.z);
+                    GetComponent<NetworkView>().RPC("SetGridElementMaterial", _oPlayer, i, j, m_tRiverGridElementValues[i, j], false, (int)m_tRiverGridElements[i, j].transform.rotation.eulerAngles.z);
                 }
                 if (m_tConstructionGridElementValues[i, j] != 0 && m_tConstructionGridElements[i, j] != null)
                 {
-                    networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tConstructionGridElementValues[i, j], false, (int)m_tConstructionGridElements[i, j].transform.rotation.eulerAngles.z);
+                    GetComponent<NetworkView>().RPC("SetGridElementMaterial", _oPlayer, i, j, m_tConstructionGridElementValues[i, j], false, (int)m_tConstructionGridElements[i, j].transform.rotation.eulerAngles.z);
                 }
                 if (m_tItemGridElementValues[i, j] != 0 && m_tItemGridElements[i, j] != null)
                 {
-                    networkView.RPC("SetGridElementMaterial", _oPlayer, i, j, m_tItemGridElementValues[i, j], false, 0);
+                    GetComponent<NetworkView>().RPC("SetGridElementMaterial", _oPlayer, i, j, m_tItemGridElementValues[i, j], false, 0);
                 }
             }
         }
@@ -819,8 +816,8 @@ public class editor_menu : MonoBehaviour
             GridElement elem = spawn.GetComponent<GridElement>();
             int iX = elem.m_iX;
             int iY = elem.m_iY;
-            networkView.RPC("CreateSpawn", _oPlayer, iX, iY, false);
-            networkView.RPC("UpdateSpawn", _oPlayer, iX, iY, spawn.m_iPlayerID);
+            GetComponent<NetworkView>().RPC("CreateSpawn", _oPlayer, iX, iY, false);
+            GetComponent<NetworkView>().RPC("UpdateSpawn", _oPlayer, iX, iY, spawn.m_iPlayerID);
         }
     }
     void OnPlayerDisconnected(NetworkPlayer _oPlayer)

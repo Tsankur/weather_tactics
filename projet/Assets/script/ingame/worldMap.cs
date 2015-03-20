@@ -135,7 +135,7 @@ public class worldMap : MonoBehaviour
                     int iPlayerID = br.ReadInt32();
                     
                     GameObject newSpawn = (GameObject)Instantiate(m_SpawnPrefab, new Vector3(iX * 10, iY * 10), Quaternion.identity);
-                    newSpawn.renderer.enabled = false;
+                    newSpawn.GetComponent<Renderer>().enabled = false;
                     newSpawn.GetComponent<GridElement>().Init(iX, iY, 0);
                     newSpawn.transform.SetParent(m_GridHolder.transform);
                     Spawn spawn = newSpawn.GetComponent<Spawn>();
