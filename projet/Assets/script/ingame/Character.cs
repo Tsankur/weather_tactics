@@ -43,12 +43,16 @@ public class Character : MonoBehaviour
     Weapon m_Weapon;
     Action m_SelectedAction = Action.None;
     Classes m_Class = Classes.Marauder;
+    bool m_bActing = false;
+    Character m_Target = null;
+    int m_iAttackCount;
+    float m_fAttackTimer = 0.0f;
 
     // statistics
     int m_iVitality = 10;
     int m_iStrength = 10;
     int m_iAgility = 10;
-    int m_iInteligence = 10;
+    int m_iIntelligence = 10;
     int m_iSpirit = 10;
 
     int m_iArmor = 1;
@@ -62,9 +66,13 @@ public class Character : MonoBehaviour
     {
         return m_bMoving;
     }
+    public bool IsActing()
+    {
+        return m_bActing;
+    }
     public bool IsTurnFinish()
     {
-        return m_bActionDone;
+        return m_bActionDone && !m_bActing;
     }
     public bool CanMove()
     {
@@ -76,6 +84,10 @@ public class Character : MonoBehaviour
         m_bMovementDone = false;
         ComputeAvailableDestinations();
         m_SelectableElem.SetActive(true);
+    }
+    public void SetAttackFinished()
+    {
+        m_bActing = false;
     }
     void Update()
     {
@@ -105,7 +117,38 @@ public class Character : MonoBehaviour
                 }
             }
         }
+        if (m_Target != null)
+        {
+            if (m_iAttackCount > 0)
+            {
+                if (m_fAttackTimer <= 0.0f)
+                {
+                    m_iAttackCount--;
+                    AttackTarget(m_Target);
+                    if(m_iAttackCount == 0)
+                    {
+                        if (!m_bActing)
+                        {
+                            m_Target.SetAttackFinished();
+                        }
+                        else
+                        {
+                            m_Target.PrepareAttack(this);
+                        }
+                    }
+                    else
+                    {
+                        m_fAttackTimer = 1.0f;
+                    }
+                }
+                else
+                {
+                    m_fAttackTimer -= Time.deltaTime;
+                }
+            }
+        }
     }
+
     public void Init(int _iMouvementPoints, int _iPlayerID, int _iTeam, List<Character> _vCharaterList, worldMap _worldMap, bool _bSwimming = false, bool _bClimbing = false, bool _bNavigation = false)
     {
         m_iMouvementPoints = _iMouvementPoints;
@@ -118,7 +161,7 @@ public class Character : MonoBehaviour
         m_bNavigation = _bNavigation;
         m_vAvailableDestinations = new List<Destination>();
         m_Weapon = new Weapon();
-        m_Weapon.Init(2, 3, 5, 1, 1.0f, Caracteristic.Agility);
+        m_Weapon.Init(2, 3, 1, 1.0f, Caracteristic.Agility);
         Classes Class = (Classes)Random.Range(0, 11);
         ClassBaseStatistics stats = gameDesignVariables.Instance.GetClassStatistics(Class);
         Debug.Log(Class);
@@ -126,13 +169,13 @@ public class Character : MonoBehaviour
         m_iVitality = stats.m_iVitality;
         m_iStrength = stats.m_iStrength;
         m_iAgility = stats.m_iAgility;
-        m_iInteligence = stats.m_iInteligence;
+        m_iIntelligence = stats.m_iIntelligence;
         m_iSpirit = stats.m_iSpirit;
 
         m_iArmor = stats.m_iArmor;
         m_iResistance = stats.m_iResistance;
-        m_iDodge = stats.m_iDodge;
         m_iLuck = stats.m_iLuck;
+        m_iDodge = stats.m_iAgility + Mathf.RoundToInt(stats.m_iLuck / 2);
 
         m_iHealthPoint = Mathf.RoundToInt(m_iVitality * 1.1f);
         m_HealthBar.Init(m_iHealthPoint);
@@ -553,24 +596,95 @@ public class Character : MonoBehaviour
                 }
                 if (target != null)
                 {
-                    if (Network.isClient || Network.isServer)
-                    {
-                        target.GetComponent<NetworkView>().RPC("UpdateHealthPoint", RPCMode.All, -2);
-                        GetComponent<NetworkView>().RPC("UpdateHealthPoint", RPCMode.All, -1);
-                    }
-                    else
-                    {
-                        target.UpdateHealthPoint(-2);
-                        UpdateHealthPoint(-1);
-                    }
+                    m_bActing = true;
+                    PrepareAttack(target);
                 }
             }
-            m_SelectedAction = Action.None;
+            else
+            {
+                m_SelectedAction = Action.None;
+            }
             m_bActionDone = true;
             HideDestinations();
             m_LastPosition = null;
         }
     }
+    public void PrepareAttack(Character _target)
+    {
+        m_iAttackCount = Mathf.Max(1, Mathf.RoundToInt(m_iAgility * m_Weapon.m_iSpeed) / 30);
+        if(m_bActing)
+        {
+            m_fAttackTimer = 0.0f;
+        }
+        else
+        {
+            m_fAttackTimer = 1.0f;
+        }
+        m_Target = _target;
+
+    }
+    void AttackTarget(Character _target)
+    {
+        int iAttackDamages = 0;
+        bool bMagicAttack = false;
+        if (m_Weapon.m_UsedCaracteristic == Caracteristic.Strength)
+        {
+            iAttackDamages = Mathf.RoundToInt(m_iStrength * m_Weapon.m_fDamageMultiplier);
+        }
+        else if (m_Weapon.m_UsedCaracteristic == Caracteristic.Agility)
+        {
+            iAttackDamages = Mathf.RoundToInt(m_iAgility * m_Weapon.m_fDamageMultiplier);
+        }
+        else if (m_Weapon.m_UsedCaracteristic == Caracteristic.Intelligence)
+        {
+            iAttackDamages = Mathf.RoundToInt(m_iIntelligence * m_Weapon.m_fDamageMultiplier);
+            bMagicAttack = true;
+        }
+        else if (m_Weapon.m_UsedCaracteristic == Caracteristic.Spirit)
+        {
+            iAttackDamages = Mathf.RoundToInt(m_iSpirit * m_Weapon.m_fDamageMultiplier);
+            bMagicAttack = true;
+        }
+        if (Random.Range(0, 100) < (m_iLuck * 2))
+        {
+            iAttackDamages *= 2;
+        }
+        _target.BeingAttacked(iAttackDamages, bMagicAttack);
+    }
+
+    public void BeingAttacked(int _iAttackDamages, bool _bMagicAttack)
+    {
+        if(Random.Range(0,100) < m_iDodge)
+        {
+            Debug.Log("Player " + m_iPlayerID + " dodge the attack");
+            return;
+        }
+
+        if (_bMagicAttack)
+        {
+            _iAttackDamages -= m_iResistance;
+        }
+        else
+        {
+            _iAttackDamages -= m_iArmor;
+        }
+
+        if (_iAttackDamages <= 0)
+        {
+            Debug.Log("Player " + m_iPlayerID + " blocked the attack");
+            return;
+        }
+        Debug.Log("Player " + m_iPlayerID + " takes : " + _iAttackDamages + (_bMagicAttack ? " magical " : " physical") + " damages");
+        if (Network.isClient || Network.isServer)
+        {
+            GetComponent<NetworkView>().RPC("UpdateHealthPoint", RPCMode.All, -_iAttackDamages);
+        }
+        else
+        {
+            UpdateHealthPoint(-_iAttackDamages);
+        }
+    }
+
     public void UpdateHealthPoint(int _iHealthPointChange)
     {
         m_iHealthPoint += _iHealthPointChange;
@@ -586,21 +700,24 @@ public class Character : MonoBehaviour
     }
     public void Cancel()
     {
-        m_bMoving = false;
-        m_CurrentPathDestination = null;
-        m_bMovementDone = false;
-        if (m_LastPosition != null)
+        if(!m_bActionDone)
         {
-            m_PathToDestination.Clear();
-            if (Network.isClient || Network.isServer)
+            m_bMoving = false;
+            m_CurrentPathDestination = null;
+            m_bMovementDone = false;
+            if (m_LastPosition != null)
             {
-                GetComponent<NetworkView>().RPC("StartPath", RPCMode.Others);
-                GetComponent<NetworkView>().RPC("AddPathDestination", RPCMode.Others, m_LastPosition.m_iX, m_LastPosition.m_iY);
-                GetComponent<NetworkView>().RPC("EndPath", RPCMode.Others);
+                m_PathToDestination.Clear();
+                if (Network.isClient || Network.isServer)
+                {
+                    GetComponent<NetworkView>().RPC("StartPath", RPCMode.Others);
+                    GetComponent<NetworkView>().RPC("AddPathDestination", RPCMode.Others, m_LastPosition.m_iX, m_LastPosition.m_iY);
+                    GetComponent<NetworkView>().RPC("EndPath", RPCMode.Others);
+                }
+                transform.position = new Vector3(m_LastPosition.m_iX * 10, m_LastPosition.m_iY * 10, -0.05f);
+                GetComponent<GridElement>().m_iX = m_LastPosition.m_iX;
+                GetComponent<GridElement>().m_iY = m_LastPosition.m_iY;
             }
-            transform.position = new Vector3(m_LastPosition.m_iX * 10, m_LastPosition.m_iY * 10, -0.05f);
-            GetComponent<GridElement>().m_iX = m_LastPosition.m_iX;
-            GetComponent<GridElement>().m_iY = m_LastPosition.m_iY;
         }
     }
     public void Wait()

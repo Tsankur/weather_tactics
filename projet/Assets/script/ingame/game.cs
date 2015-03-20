@@ -138,8 +138,8 @@ public class game : MonoBehaviour
                                     if (m_SelectedChar != null)
                                     {
                                         m_SelectedChar.GetComponent<Character>().Act(gridElem.m_iX, gridElem.m_iY);
-                                        m_SelectedRect.SetActive(false);
-                                        m_bActionSelected = false;
+                                        /*m_SelectedRect.SetActive(false);
+                                        m_bActionSelected = false;*/
                                     }
                                 }
                             }
@@ -263,24 +263,26 @@ public class game : MonoBehaviour
         {
             if (m_SelectedChar != null)
             {
-
-                if (m_SelectedChar.GetComponent<Character>().m_iPlayerID == m_iCurrentPlayerId)
+                if (!m_SelectedChar.GetComponent<Character>().IsActing())
                 {
-                    m_SelectedChar.GetComponent<Character>().m_SelectableElem.SetActive(true);
-                }
-                if(m_bActionSelected)
-                {
-                    m_ActionPanel.SetActive(true);
-                    m_bActionSelected = false;
-                    m_SelectedChar.GetComponent<Character>().HideDestinations();
-                }
-                else
-                {
-                    m_SelectedChar.GetComponent<Character>().HideDestinations();
-                    m_SelectedChar.GetComponent<Character>().Cancel();
-                    m_SelectedRect.SetActive(false);
-                    m_ActionPanel.SetActive(false);
-                    m_SelectedChar = null;
+                    if (m_SelectedChar.GetComponent<Character>().m_iPlayerID == m_iCurrentPlayerId)
+                    {
+                        m_SelectedChar.GetComponent<Character>().m_SelectableElem.SetActive(true);
+                    }
+                    if(m_bActionSelected)
+                    {
+                        m_ActionPanel.SetActive(true);
+                        m_bActionSelected = false;
+                        m_SelectedChar.GetComponent<Character>().HideDestinations();
+                    }
+                    else
+                    {
+                        m_SelectedChar.GetComponent<Character>().HideDestinations();
+                        m_SelectedChar.GetComponent<Character>().Cancel();
+                        m_SelectedRect.SetActive(false);
+                        m_ActionPanel.SetActive(false);
+                        m_SelectedChar = null;
+                    }
                 }
             }
         }
@@ -293,6 +295,7 @@ public class game : MonoBehaviour
                     m_SelectedChar = null;
                     m_SelectedRect.SetActive(false);
                     m_ActionPanel.SetActive(false);
+                    m_bActionSelected = false;
                 }
             }
         }
